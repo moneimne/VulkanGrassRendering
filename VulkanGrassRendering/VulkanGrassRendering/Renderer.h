@@ -104,6 +104,10 @@ private:
 	VkDeviceMemory uniformBufferMemory;
 	VkDescriptorPool descriptorPool;
 	VkDescriptorSet descriptorSet;
+	VkImage textureImage;
+	VkDeviceMemory textureImageMemory;
+	VkImageView textureImageView;
+	VkSampler textureSampler;
 	
 	// Initialize the GLFW window
 	void initWindow();
@@ -147,6 +151,21 @@ private:
 	// Create a command pool, which manages the memory that is used to store buffers and command buffers
 	void createCommandPool();
 
+	// Create a Vulkan image
+	void createImage(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory);
+
+	// Create a texture image
+	void createTextureImage();
+
+	// Create an image view
+	VkImageView createImageView(VkImage image, VkFormat format);
+
+	// Create an image view for the texture image
+	void createTextureImageView();
+
+	// Create a sampler for the texture
+	void createTextureSampler();
+
 	// Create a buffer
 	void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory);
 
@@ -167,6 +186,19 @@ private:
 
 	// Update the uniform buffer
 	void updateUniformBuffer();
+
+	// Allow us to begin and end single time commands
+	VkCommandBuffer beginSingleTimeCommands();
+	void endSingleTimeCommands(VkCommandBuffer commandBuffer);
+
+	// Copy contents from one buffer to another
+	void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
+
+	// Copy buffer data to image
+	void copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
+
+	// Handle layout transitions for images
+	void transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
 
 	// Create the command buffers, which are used to record drawing commands to be used in the pipeline
 	void createCommandBuffers();
