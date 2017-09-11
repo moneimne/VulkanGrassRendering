@@ -108,6 +108,9 @@ private:
 	VkDeviceMemory textureImageMemory;
 	VkImageView textureImageView;
 	VkSampler textureSampler;
+	VkImage depthImage;
+	VkDeviceMemory depthImageMemory;
+	VkImageView depthImageView;
 	
 	// Initialize the GLFW window
 	void initWindow();
@@ -154,11 +157,14 @@ private:
 	// Create a Vulkan image
 	void createImage(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory);
 
+	// Create resources for depth buffer
+	void createDepthResources();
+
 	// Create a texture image
 	void createTextureImage();
 
 	// Create an image view
-	VkImageView createImageView(VkImage image, VkFormat format);
+	VkImageView createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags);
 
 	// Create an image view for the texture image
 	void createTextureImageView();
