@@ -111,6 +111,9 @@ private:
 	VkImage depthImage;
 	VkDeviceMemory depthImageMemory;
 	VkImageView depthImageView;
+
+	std::vector<Vertex> vertices;
+	std::vector<uint32_t> indices;
 	
 	// Initialize the GLFW window
 	void initWindow();
@@ -174,6 +177,9 @@ private:
 
 	// Create a buffer
 	void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory);
+
+	// Load an OBJ model
+	void loadModel();
 
 	// Create a vertex buffer
 	void createVertexBuffer();
