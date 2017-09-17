@@ -1,4 +1,5 @@
 #include "Renderer.h"
+#include "Buffer.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
@@ -54,6 +55,7 @@ void DestroyDebugReportCallbackEXT(VkInstance instance, VkDebugReportCallbackEXT
 void Renderer::run() {
 	initWindow();
 	initVulkan();
+	createScene();
 	mainLoop();
 	cleanup();
 }
@@ -67,6 +69,8 @@ void Renderer::initWindow() {
 
 	glfwSetWindowUserPointer(window, this);
 	glfwSetWindowSizeCallback(window, Renderer::onWindowResized);
+	glfwSetMouseButtonCallback(window, Renderer::onMouseClick);
+	glfwSetCursorPosCallback(window, Renderer::onMouseMove);
 }
 
 void Renderer::onWindowResized(GLFWwindow* window, int width, int height) {
@@ -74,6 +78,57 @@ void Renderer::onWindowResized(GLFWwindow* window, int width, int height) {
 
 	Renderer* renderer = reinterpret_cast<Renderer*>(glfwGetWindowUserPointer(window));
 	renderer->recreateSwapChain();
+}
+
+bool leftMouseDown = false;
+bool rightMouseDown = false;
+double previousX = 0.0;
+double previousY = 0.0;
+void Renderer::onMouseClick(GLFWwindow* window, int button, int action, int mods) {
+	Renderer* renderer = reinterpret_cast<Renderer*>(glfwGetWindowUserPointer(window));
+
+	if (button == GLFW_MOUSE_BUTTON_LEFT) {
+		if (action == GLFW_PRESS) {
+			leftMouseDown = true;
+			glfwGetCursorPos(window, &previousX, &previousY);
+		}
+		else if (action == GLFW_RELEASE) {
+			leftMouseDown = false;
+		}
+	}
+	else if (button == GLFW_MOUSE_BUTTON_RIGHT) {
+		if (action == GLFW_PRESS) {
+			rightMouseDown = true;
+			glfwGetCursorPos(window, &previousX, &previousY);
+		}
+		else if (action == GLFW_RELEASE) {
+			rightMouseDown = false;
+		}
+	}
+}
+
+void Renderer::onMouseMove(GLFWwindow* window, double xPosition, double yPosition) {
+	Renderer* renderer = reinterpret_cast<Renderer*>(glfwGetWindowUserPointer(window));
+
+	if (leftMouseDown) {
+		double sensitivity = 0.5;
+		double deltaX = (previousX - xPosition) * sensitivity;
+		double deltaY = (previousY - yPosition) * sensitivity;
+
+		Camera* camera = renderer->scene.getCamera();
+		camera->updateOrbit(deltaX, deltaY, 0.0);
+
+		previousX = xPosition;
+		previousY = yPosition;
+	}
+	else if (rightMouseDown) {
+		double deltaZ = (previousY - yPosition) * 0.05;
+
+		Camera* camera = renderer->scene.getCamera();
+		camera->updateOrbit(0.0, 0.0, deltaZ);
+
+		previousY = yPosition;
+	}
 }
 
 // Check if all of the requested validation layers are available
@@ -860,7 +915,6 @@ void Renderer::createCommandPool() {
 	}
 }
 
-// 
 uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties, VkPhysicalDevice physicalDevice) {
 	VkPhysicalDeviceMemoryProperties memProperties;
 	vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memProperties);
@@ -941,7 +995,7 @@ void Renderer::createTextureImage() {
 
 	VkBufferUsageFlags stagingUsage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
 	VkMemoryPropertyFlags stagingProperties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-	createBuffer(imageSize, stagingUsage, stagingProperties, stagingBuffer, stagingBufferMemory);
+	Buffer::createBuffer(imageSize, stagingUsage, stagingProperties, stagingBuffer, stagingBufferMemory, logicalDevice, physicalDevice);
 
 	// Copy pixel values to the buffer
 	void* data;
@@ -1120,130 +1174,12 @@ void Renderer::transitionImageLayout(VkImage image, VkFormat format, VkImageLayo
 	endSingleTimeCommands(commandBuffer);
 }
 
-void Renderer::createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory) {
-	// Create buffer
-	VkBufferCreateInfo bufferInfo = {};
-	bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-	bufferInfo.size = size;
-	bufferInfo.usage = usage;
-	bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-
-	if (vkCreateBuffer(logicalDevice, &bufferInfo, nullptr, &buffer) != VK_SUCCESS) {
-		throw std::runtime_error("Failed to create vertex buffer");
-	}
-
-	// Query buffer's memory requirements
-	VkMemoryRequirements memRequirements;
-	vkGetBufferMemoryRequirements(logicalDevice, buffer, &memRequirements);
-
-	// Allocate memory in device
-	VkMemoryAllocateInfo allocInfo = {};
-	allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-	allocInfo.allocationSize = memRequirements.size;
-	allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, properties, physicalDevice);
-
-	if (vkAllocateMemory(logicalDevice, &allocInfo, nullptr, &bufferMemory) != VK_SUCCESS) {
-		throw std::runtime_error("Failed to allocate vertex buffer");
-	}
-
-	// Associate allocated memory with vertex buffer
-	vkBindBufferMemory(logicalDevice, buffer, bufferMemory, 0);
-}
-
-void Renderer::copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size) {
-	// Create a temporary command buffer for the transfer operation
-	VkCommandBuffer commandBuffer = beginSingleTimeCommands();
-
-	VkBufferCopy copyRegion = {};
-	copyRegion.size = size;
-	vkCmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, 1, &copyRegion);
-
-	endSingleTimeCommands(commandBuffer);
-}
-
-void Renderer::loadModel() {
-	vertices = {
-		{ { -0.5f, -0.5f, 0.0f }, { 1.0f, 0.0f, 0.0f }, { 1.0f, 0.0f } },
-		{ { 0.5f, -0.5f, 0.0f }, { 0.0f, 1.0f, 0.0f }, { 0.0f, 0.0f } },
-		{ { 0.5f, 0.5f, 0.0f }, { 0.0f, 0.0f, 1.0f }, { 0.0f, 1.0f } },
-		{ { -0.5f, 0.5f, 0.0f }, { 1.0f, 1.0f, 1.0f }, { 1.0f, 1.0f } },
-
-		{ { -0.5f, -0.5f, -0.5f }, { 1.0f, 0.0f, 0.0f }, { 1.0f, 0.0f } },
-		{ { 0.5f, -0.5f, -0.5f }, { 0.0f, 1.0f, 0.0f }, { 0.0f, 0.0f } },
-		{ { 0.5f, 0.5f, -0.5f }, { 0.0f, 0.0f, 1.0f }, { 0.0f, 1.0f } },
-		{ { -0.5f, 0.5f, -0.5f }, { 1.0f, 1.0f, 1.0f }, { 1.0f, 1.0f } }
-	};
-
-	indices = {
-		0, 1, 2, 2, 3, 0,
-		4, 5, 6, 6, 7, 4
-	};
-}
-
-void Renderer::createVertexBuffer() {
-	// Create the staging buffer
-	VkBuffer stagingBuffer;
-	VkDeviceMemory stagingBufferMemory;
-
-	VkDeviceSize bufferSize = sizeof(vertices[0]) * vertices.size();
-	VkBufferUsageFlags stagingUsage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
-	VkMemoryPropertyFlags stagingProperties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-	createBuffer(bufferSize, stagingUsage, stagingProperties, stagingBuffer, stagingBufferMemory);
-
-	// Fill the staging buffer
-	void *data;
-	vkMapMemory(logicalDevice, stagingBufferMemory, 0, bufferSize, 0, &data);
-	memcpy(data, vertices.data(), (size_t)bufferSize);
-	vkUnmapMemory(logicalDevice, stagingBufferMemory);
-
-	// Create the vertex buffer
-	VkBufferUsageFlags vertexUsage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-	VkMemoryPropertyFlags vertexFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-	createBuffer(bufferSize, vertexUsage, vertexFlags, vertexBuffer, vertexBufferMemory);
-
-	// Copy data from staging to vertex buffer
-	copyBuffer(stagingBuffer, vertexBuffer, bufferSize);
-
-	// No need for the staging buffer anymore
-	vkDestroyBuffer(logicalDevice, stagingBuffer, nullptr);
-	vkFreeMemory(logicalDevice, stagingBufferMemory, nullptr);
-}
-
-void Renderer::createIndexBuffer() {
-	// Create the staging buffer
-	VkBuffer stagingBuffer;
-	VkDeviceMemory stagingBufferMemory;
-
-	VkDeviceSize bufferSize = sizeof(indices[0]) * indices.size();
-	VkBufferUsageFlags stagingUsage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
-	VkMemoryPropertyFlags stagingProperties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-	createBuffer(bufferSize, stagingUsage, stagingProperties, stagingBuffer, stagingBufferMemory);
-
-	// Fill the staging buffer
-	void *data;
-	vkMapMemory(logicalDevice, stagingBufferMemory, 0, bufferSize, 0, &data);
-	memcpy(data, indices.data(), (size_t)bufferSize);
-	vkUnmapMemory(logicalDevice, stagingBufferMemory);
-
-	// Create the vertex buffer
-	VkBufferUsageFlags indexUsage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
-	VkMemoryPropertyFlags indexFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-	createBuffer(bufferSize, indexUsage, indexFlags, indexBuffer, indexBufferMemory);
-
-	// Copy data from staging to vertex buffer
-	copyBuffer(stagingBuffer, indexBuffer, bufferSize);
-
-	// No need for the staging buffer anymore
-	vkDestroyBuffer(logicalDevice, stagingBuffer, nullptr);
-	vkFreeMemory(logicalDevice, stagingBufferMemory, nullptr);
-}
-
 void Renderer::createUniformBuffer() {
 	// Create uniform buffer
 	VkDeviceSize bufferSize = sizeof(UniformBufferObject);
 	VkBufferUsageFlags usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
 	VkMemoryPropertyFlags properties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-	createBuffer(bufferSize, usage, properties, uniformBuffer, uniformBufferMemory);
+	Buffer::createBuffer(bufferSize, usage, properties, uniformBuffer, uniformBufferMemory, logicalDevice, physicalDevice);
 }
 
 void Renderer::createDescriptorPool() {
@@ -1347,7 +1283,7 @@ void Renderer::endSingleTimeCommands(VkCommandBuffer commandBuffer) {
 	vkFreeCommandBuffers(logicalDevice, commandPool, 1, &commandBuffer);
 }
 
-void Renderer::createCommandBuffers() {
+void Renderer::createCommandBuffers(Model& model) {
 	commandBuffers.resize(swapChainFramebuffers.size());
 
 	// Specify the command pool and number of buffers to allocate
@@ -1391,16 +1327,17 @@ void Renderer::createCommandBuffers() {
 		vkCmdBindPipeline(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
 
 		// Bind the vertex and index buffers
-		VkBuffer vertexBuffers[] = { vertexBuffer };
+		VkBuffer vertexBuffers[] = { model.getVertexBuffer() };
 		VkDeviceSize offsets[] = { 0 };
 		vkCmdBindVertexBuffers(commandBuffers[i], 0, 1, vertexBuffers, offsets);
 
-		vkCmdBindIndexBuffer(commandBuffers[i], indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+		vkCmdBindIndexBuffer(commandBuffers[i], model.getIndexBuffer(), 0, VK_INDEX_TYPE_UINT32);
 
 		// Bind the descriptor sets
 		vkCmdBindDescriptorSets(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSet, 0, nullptr);
 
 		// Draw
+		std::vector<uint32_t> indices = model.getIndices();
 		vkCmdDrawIndexed(commandBuffers[i], static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
 
 		// End render pass
@@ -1440,13 +1377,15 @@ void Renderer::initVulkan() {
 	createTextureImage();
 	createTextureImageView();
 	createTextureSampler();
-	loadModel();
-	createVertexBuffer();
-	createIndexBuffer();
 	createUniformBuffer();
 	createDescriptorPool();
 	createDescriptorSet();
-	createCommandBuffers();
+}
+
+void Renderer::createScene() {
+	scene = Scene(logicalDevice, physicalDevice, commandPool, graphicsQueue, swapChainExtent.width / (float)swapChainExtent.height);
+	Model* model = scene.getModel();
+	createCommandBuffers(*model);
 	createSemaphores();
 }
 
@@ -1510,15 +1449,13 @@ void Renderer::drawFrame() {
 }
 
 void Renderer::updateUniformBuffer() {
-	static auto startTime = std::chrono::high_resolution_clock::now();
-
-	auto currentTime = std::chrono::high_resolution_clock::now();
-	float time = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - startTime).count() / 1000.0f;
+	Model* model = scene.getModel();
+	Camera* camera = scene.getCamera();
 
 	UniformBufferObject ubo = {};
-	ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-	ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-	ubo.proj = glm::perspective(glm::radians(45.0f), swapChainExtent.width / (float)swapChainExtent.height, 0.1f, 10.0f);
+	ubo.model = model->getModelMatrix();
+	ubo.view = camera->getViewMatrix();
+	ubo.proj = camera->getProjectionMatrix();
 	ubo.proj[1][1] *= -1; // y-coordinate is flipped
 
 	// Fill the uniform buffer
@@ -1551,7 +1488,7 @@ void Renderer::recreateSwapChain() {
 	createGraphicsPipeline();
 	createDepthResources();
 	createFramebuffers();
-	createCommandBuffers();
+	createCommandBuffers(*scene.getModel());
 }
 
 void Renderer::cleanupSwapChain() {
@@ -1593,11 +1530,7 @@ void Renderer::cleanup() {
 
 	vkDestroyDescriptorSetLayout(logicalDevice, descriptorSetLayout, nullptr);
 
-	vkDestroyBuffer(logicalDevice, indexBuffer, nullptr);
-	vkFreeMemory(logicalDevice, indexBufferMemory, nullptr);
-
-	vkDestroyBuffer(logicalDevice, vertexBuffer, nullptr);
-	vkFreeMemory(logicalDevice, vertexBufferMemory, nullptr);
+	scene.cleanup(logicalDevice);
 
 	vkDestroySemaphore(logicalDevice, imageAvailableSemaphore, nullptr);
 	vkDestroySemaphore(logicalDevice, renderFinishedSemaphore, nullptr);

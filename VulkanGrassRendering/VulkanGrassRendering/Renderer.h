@@ -7,6 +7,9 @@
 #include <vector>
 #include <array>
 
+#include "Vertex.h"
+#include "Scene.h"
+
 struct QueueFamilyIndices {
 	int graphicsFamily = -1;
 	int presentFamily = -1;
@@ -20,47 +23,6 @@ struct SwapChainSupportDetails {
 	VkSurfaceCapabilitiesKHR capabilities;
 	std::vector<VkSurfaceFormatKHR> formats;
 	std::vector<VkPresentModeKHR> presentModes;
-};
-
-struct Vertex {
-	glm::vec3 pos;
-	glm::vec3 color;
-	glm::vec2 texCoord;
-
-	// Get the binding description, which describes the rate to load data from memory
-	static VkVertexInputBindingDescription getBindingDescription() {
-		VkVertexInputBindingDescription bindingDescription = {};
-		bindingDescription.binding = 0;
-		bindingDescription.stride = sizeof(Vertex);
-		bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-
-		return bindingDescription;
-	}
-
-	// Get the attribute descriptions, which describe how to handle vertex input
-	static std::array<VkVertexInputAttributeDescription, 3> getAttributeDescriptions() {
-		std::array<VkVertexInputAttributeDescription, 3> attributeDescriptions = {};
-		
-		// Position
-		attributeDescriptions[0].binding = 0;
-		attributeDescriptions[0].location = 0;
-		attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
-		attributeDescriptions[0].offset = offsetof(Vertex, pos);
-
-		// Color
-		attributeDescriptions[1].binding = 0;
-		attributeDescriptions[1].location = 1;
-		attributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
-		attributeDescriptions[1].offset = offsetof(Vertex, color);
-
-		// Texture coordinate
-		attributeDescriptions[2].binding = 0;
-		attributeDescriptions[2].location = 2;
-		attributeDescriptions[2].format = VK_FORMAT_R32G32_SFLOAT;
-		attributeDescriptions[2].offset = offsetof(Vertex, texCoord);
-
-		return attributeDescriptions;
-	}
 };
 
 struct UniformBufferObject {
@@ -78,48 +40,59 @@ private:
 	VkInstance instance;
 	VkDebugReportCallbackEXT callback;
 	VkSurfaceKHR surface;
+
 	VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
 	VkDevice logicalDevice;
+
 	VkQueue graphicsQueue;
 	VkQueue presentQueue;
+
 	VkSwapchainKHR swapChain;
 	std::vector<VkImage> swapChainImages;
 	VkFormat swapChainImageFormat;
 	VkExtent2D swapChainExtent;
 	std::vector<VkImageView> swapChainImageViews;
+	std::vector<VkFramebuffer> swapChainFramebuffers;
+
 	VkRenderPass renderPass;
 	VkDescriptorSetLayout descriptorSetLayout;
 	VkPipelineLayout pipelineLayout;
 	VkPipeline graphicsPipeline;
-	std::vector<VkFramebuffer> swapChainFramebuffers;
+
 	VkCommandPool commandPool;
 	std::vector<VkCommandBuffer> commandBuffers;
+
 	VkSemaphore imageAvailableSemaphore;
 	VkSemaphore renderFinishedSemaphore;
-	VkBuffer vertexBuffer;
-	VkDeviceMemory vertexBufferMemory;
-	VkBuffer indexBuffer;
-	VkDeviceMemory indexBufferMemory;
+
 	VkBuffer uniformBuffer;
 	VkDeviceMemory uniformBufferMemory;
+
 	VkDescriptorPool descriptorPool;
 	VkDescriptorSet descriptorSet;
+
 	VkImage textureImage;
 	VkDeviceMemory textureImageMemory;
 	VkImageView textureImageView;
 	VkSampler textureSampler;
+
 	VkImage depthImage;
 	VkDeviceMemory depthImageMemory;
 	VkImageView depthImageView;
 
-	std::vector<Vertex> vertices;
-	std::vector<uint32_t> indices;
+	Scene scene;
 	
 	// Initialize the GLFW window
 	void initWindow();
 	
 	// Window resize callback
 	static void onWindowResized(GLFWwindow* window, int width, int height);
+
+	// Mouse click callback
+	static void onMouseClick(GLFWwindow* window, int button, int action, int mods);
+
+	// Mouse move callback
+	static void onMouseMove(GLFWwindow* window, double xPosition, double yPosition);
 
 	// Create an instance, which is the connection between the application and the Vulkan library
 	void createInstance();
@@ -175,18 +148,6 @@ private:
 	// Create a sampler for the texture
 	void createTextureSampler();
 
-	// Create a buffer
-	void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory);
-
-	// Load an OBJ model
-	void loadModel();
-
-	// Create a vertex buffer
-	void createVertexBuffer();
-
-	// Create an index buffer
-	void createIndexBuffer();
-
 	// Create a uniform buffer
 	void createUniformBuffer();
 
@@ -203,9 +164,6 @@ private:
 	VkCommandBuffer beginSingleTimeCommands();
 	void endSingleTimeCommands(VkCommandBuffer commandBuffer);
 
-	// Copy contents from one buffer to another
-	void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
-
 	// Copy buffer data to image
 	void copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
 
@@ -213,12 +171,14 @@ private:
 	void transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
 
 	// Create the command buffers, which are used to record drawing commands to be used in the pipeline
-	void createCommandBuffers();
+	void createCommandBuffers(Model& model);
 
 	// Create the semaphores that will help synchronize the queue operations of draw commands and presentation
 	void createSemaphores();
 
 	void initVulkan();
+
+	void createScene();
 
 	// Draw contents on screen
 	void drawFrame();
