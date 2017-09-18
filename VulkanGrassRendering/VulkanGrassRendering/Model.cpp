@@ -6,22 +6,16 @@ Model::Model() {
 
 Model::Model(VkDevice& logicalDevice, VkPhysicalDevice& physicalDevice, VkCommandPool& commandPool, VkQueue& graphicsQueue) {
 	vertices = {
-		{ { -0.5f, -0.5f, 0.0f },{ 1.0f, 0.0f, 0.0f },{ 1.0f, 0.0f } },
-		{ { 0.5f, -0.5f, 0.0f },{ 0.0f, 1.0f, 0.0f },{ 0.0f, 0.0f } },
-		{ { 0.5f, 0.5f, 0.0f },{ 0.0f, 0.0f, 1.0f },{ 0.0f, 1.0f } },
-		{ { -0.5f, 0.5f, 0.0f },{ 1.0f, 1.0f, 1.0f },{ 1.0f, 1.0f } },
-
-		{ { -0.5f, -0.5f, -0.5f },{ 1.0f, 0.0f, 0.0f },{ 1.0f, 0.0f } },
-		{ { 0.5f, -0.5f, -0.5f },{ 0.0f, 1.0f, 0.0f },{ 0.0f, 0.0f } },
-		{ { 0.5f, 0.5f, -0.5f },{ 0.0f, 0.0f, 1.0f },{ 0.0f, 1.0f } },
-		{ { -0.5f, 0.5f, -0.5f },{ 1.0f, 1.0f, 1.0f },{ 1.0f, 1.0f } }
+		{ { -0.5f, 0.0f, 0.5f },{ 1.0f, 0.0f, 0.0f },{ 1.0f, 0.0f } },
+		{ { 0.5f, 0.0f, 0.5f },{ 0.0f, 1.0f, 0.0f },{ 0.0f, 0.0f } },
+		{ { 0.5f, 0.0f, -0.5f },{ 0.0f, 0.0f, 1.0f },{ 0.0f, 1.0f } },
+		{ { -0.5f, 0.0f, -0.5f },{ 1.0f, 1.0f, 1.0f },{ 1.0f, 1.0f } }
 	};
 
 	Buffer::createVertexBuffer(vertices, vertexBuffer, vertexBufferMemory, logicalDevice, physicalDevice, commandPool, graphicsQueue);
 
 	indices = {
-		0, 1, 2, 2, 3, 0,
-		4, 5, 6, 6, 7, 4
+		0, 1, 2, 2, 3, 0
 	};
 
 	Buffer::createIndexBuffer(indices, indexBuffer, indexBufferMemory, logicalDevice, physicalDevice, commandPool, graphicsQueue);

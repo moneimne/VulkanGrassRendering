@@ -1456,7 +1456,6 @@ void Renderer::updateUniformBuffer() {
 	ubo.model = model->getModelMatrix();
 	ubo.view = camera->getViewMatrix();
 	ubo.proj = camera->getProjectionMatrix();
-	ubo.proj[1][1] *= -1; // y-coordinate is flipped
 
 	// Fill the uniform buffer
 	void *data;

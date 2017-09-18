@@ -9,8 +9,9 @@ Camera::Camera() {
 	r = 2.0f;
 	theta = 0.0f;
 	phi = 0.0f;
-	viewMatrix = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+	viewMatrix = glm::lookAt(glm::vec3(0.0f, 0.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
 	projectionMatrix = glm::perspective(glm::radians(45.0f), 1.0f, 0.1f, 10.0f);
+	projectionMatrix[1][1] *= -1; // y-coordinate is flipped
 }
 
 Camera::Camera(float aspectRatio) {
@@ -19,12 +20,13 @@ Camera::Camera(float aspectRatio) {
 	phi = 0.0f;
 	viewMatrix = glm::lookAt(glm::vec3(0.0f, 0.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 	projectionMatrix = glm::perspective(glm::radians(45.0f), aspectRatio, 0.1f, 10.0f);
+	projectionMatrix[1][1] *= -1; // y-coordinate is flipped
 }
 
 void Camera::updateOrbit(double deltaX, double deltaY, double deltaZ) {
 	theta += deltaX;
 	phi += deltaY;
-	r -= deltaZ;
+	r = glm::clamp(r - (float)deltaZ, 1.0f, 9.0f);
 
 	float radTheta = glm::radians(theta);
 	float radPhi = glm::radians(phi);
