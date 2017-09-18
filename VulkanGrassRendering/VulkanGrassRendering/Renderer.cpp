@@ -269,6 +269,10 @@ QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device, VkSurfaceKHR surfa
 			indices.graphicsFamily = i;
 		}
 
+		if (queueFamily.queueCount > 0 && queueFamily.queueFlags & VK_QUEUE_COMPUTE_BIT) {
+			indices.computeFamily = i;
+		}
+
 		VkBool32 presentSupport = false;
 		vkGetPhysicalDeviceSurfaceSupportKHR(device, i, surface, &presentSupport);
 
@@ -424,6 +428,7 @@ void Renderer::createLogicalDevice() {
 	// --- Retrieve queue handles for each queue family ---
 	vkGetDeviceQueue(logicalDevice, indices.graphicsFamily, 0, &graphicsQueue);
 	vkGetDeviceQueue(logicalDevice, indices.presentFamily, 0, &presentQueue);
+	vkGetDeviceQueue(logicalDevice, indices.computeFamily, 0, &computeQueue);
 }
 
 // Specify the color channel format and color space type
@@ -511,12 +516,12 @@ void Renderer::createSwapChain() {
 
 	// Specify how to handle swap chain images that are used across multiple queue families
 	QueueFamilyIndices indices = findQueueFamilies(physicalDevice, surface);
-	uint32_t queueFamilyIndices[] = { (uint32_t)indices.graphicsFamily, (uint32_t)indices.presentFamily };
+	uint32_t queueFamilyIndices[] = { (uint32_t)indices.graphicsFamily, (uint32_t)indices.presentFamily, (uint32_t)indices.computeFamily };
 
-	if (indices.graphicsFamily != indices.presentFamily) {
+	if (indices.graphicsFamily != indices.presentFamily && indices.graphicsFamily != indices.computeFamily && indices.computeFamily != indices.presentFamily) {
 		// Images can be used across multiple queue families without explicit ownership transfers
 		createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
-		createInfo.queueFamilyIndexCount = 2;
+		createInfo.queueFamilyIndexCount = 3;
 		createInfo.pQueueFamilyIndices = queueFamilyIndices;
 	}
 	else {
