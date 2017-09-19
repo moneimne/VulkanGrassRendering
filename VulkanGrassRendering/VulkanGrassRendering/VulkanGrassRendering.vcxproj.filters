@@ -73,5 +73,8 @@
     <None Include="Shaders\compile.bat">
       <Filter>Source Files\Shaders</Filter>
     </None>
+    <None Include="Shaders\shader.comp">
+      <Filter>Source Files\Shaders</Filter>
+    </None>
   </ItemGroup>
 </Project>

@@ -58,8 +58,11 @@ private:
 
 	VkRenderPass renderPass;
 	VkDescriptorSetLayout descriptorSetLayout;
-	VkPipelineLayout pipelineLayout;
+	VkPipelineLayout graphicsPipelineLayout;
 	VkPipeline graphicsPipeline;
+
+	VkPipelineLayout computePipelineLayout;
+	VkPipeline computePipeline;
 
 	VkCommandPool commandPool;
 	std::vector<VkCommandBuffer> commandBuffers;
@@ -125,6 +128,9 @@ private:
 
 	// Create the graphics pipeline
 	void createGraphicsPipeline();
+
+	// Create the compute pipeline
+	void createComputePipeline();
 
 	// Create the framebuffers, one for each image in the swap chain
 	void createFramebuffers();

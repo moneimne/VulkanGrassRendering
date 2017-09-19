@@ -851,7 +851,7 @@ void Renderer::createGraphicsPipeline() {
 	pipelineLayoutInfo.pushConstantRangeCount = 0;
 	pipelineLayoutInfo.pPushConstantRanges = 0;
 
-	if (vkCreatePipelineLayout(logicalDevice, &pipelineLayoutInfo, nullptr, &pipelineLayout) != VK_SUCCESS) {
+	if (vkCreatePipelineLayout(logicalDevice, &pipelineLayoutInfo, nullptr, &graphicsPipelineLayout) != VK_SUCCESS) {
 		throw std::runtime_error("Failed to create pipeline layout");
 	}
 
@@ -868,7 +868,7 @@ void Renderer::createGraphicsPipeline() {
 	pipelineInfo.pDepthStencilState = &depthStencil;
 	pipelineInfo.pColorBlendState = &colorBlending;
 	pipelineInfo.pDynamicState = nullptr;
-	pipelineInfo.layout = pipelineLayout;
+	pipelineInfo.layout = graphicsPipelineLayout;
 	pipelineInfo.renderPass = renderPass;
 	pipelineInfo.subpass = 0;
 	pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
@@ -881,6 +881,48 @@ void Renderer::createGraphicsPipeline() {
 	// No need for the shader modules anymore
 	vkDestroyShaderModule(logicalDevice, vertShaderModule, nullptr);
 	vkDestroyShaderModule(logicalDevice, fragShaderModule, nullptr);
+}
+
+void Renderer::createComputePipeline() {
+	// Set up programmable shaders
+	auto computeShaderCode = readFile("Shaders/comp.spv");
+
+	VkShaderModule computeShaderModule = createShaderModule(computeShaderCode, logicalDevice);
+
+	VkPipelineShaderStageCreateInfo computeShaderStageInfo = {};
+	computeShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+	computeShaderStageInfo.stage = VK_SHADER_STAGE_COMPUTE_BIT;
+	computeShaderStageInfo.module = computeShaderModule;
+	computeShaderStageInfo.pName = "main";
+
+	// Create pipeline layout
+	VkPipelineLayoutCreateInfo pipelineLayoutInfo = {};
+	pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+	pipelineLayoutInfo.setLayoutCount = 0;
+	pipelineLayoutInfo.pSetLayouts = VK_NULL_HANDLE;
+	pipelineLayoutInfo.pushConstantRangeCount = 0;
+	pipelineLayoutInfo.pPushConstantRanges = 0;
+
+	if (vkCreatePipelineLayout(logicalDevice, &pipelineLayoutInfo, nullptr, &computePipelineLayout) != VK_SUCCESS) {
+		throw std::runtime_error("Failed to create pipeline layout");
+	}
+
+	// Create compute pipeline
+	VkComputePipelineCreateInfo pipelineInfo = {};
+	pipelineInfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+	pipelineInfo.stage = computeShaderStageInfo;
+	pipelineInfo.layout = computePipelineLayout;
+	pipelineInfo.pNext = nullptr;
+	pipelineInfo.flags = 0;
+	pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
+	pipelineInfo.basePipelineIndex = -1;
+
+	if (vkCreateComputePipelines(logicalDevice, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &computePipeline) != VK_SUCCESS) {
+		throw std::runtime_error("Failed to create compute pipeline");
+	}
+
+	// No need for shader modules anymore
+	vkDestroyShaderModule(logicalDevice, computeShaderModule, nullptr);
 }
 
 void Renderer::createFramebuffers() {
@@ -1339,7 +1381,7 @@ void Renderer::createCommandBuffers(Model& model) {
 		vkCmdBindIndexBuffer(commandBuffers[i], model.getIndexBuffer(), 0, VK_INDEX_TYPE_UINT32);
 
 		// Bind the descriptor sets
-		vkCmdBindDescriptorSets(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSet, 0, nullptr);
+		vkCmdBindDescriptorSets(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipelineLayout, 0, 1, &descriptorSet, 0, nullptr);
 
 		// Draw
 		std::vector<uint32_t> indices = model.getIndices();
@@ -1376,6 +1418,7 @@ void Renderer::initVulkan() {
 	createRenderPass();
 	createDescriptorSetLayout();
 	createGraphicsPipeline();
+	createComputePipeline();
 	createCommandPool();
 	createDepthResources();
 	createFramebuffers();
@@ -1507,7 +1550,7 @@ void Renderer::cleanupSwapChain() {
 	vkFreeCommandBuffers(logicalDevice, commandPool, static_cast<uint32_t>(commandBuffers.size()), commandBuffers.data());
 
 	vkDestroyPipeline(logicalDevice, graphicsPipeline, nullptr);
-	vkDestroyPipelineLayout(logicalDevice, pipelineLayout, nullptr);
+	vkDestroyPipelineLayout(logicalDevice, graphicsPipelineLayout, nullptr);
 	vkDestroyRenderPass(logicalDevice, renderPass, nullptr);
 
 	for (size_t i = 0; i < swapChainImageViews.size(); i++) {
@@ -1520,6 +1563,9 @@ void Renderer::cleanupSwapChain() {
 void Renderer::cleanup() {
 	cleanupSwapChain();
 
+	vkDestroyPipeline(logicalDevice, computePipeline, nullptr);
+	vkDestroyPipelineLayout(logicalDevice, computePipelineLayout, nullptr);
+
 	vkDestroySampler(logicalDevice, textureSampler, nullptr);
 	vkDestroyImageView(logicalDevice, textureImageView, nullptr);
 
@@ -1531,8 +1577,6 @@ void Renderer::cleanup() {
 	vkDestroyDescriptorSetLayout(logicalDevice, descriptorSetLayout, nullptr);
 	vkDestroyBuffer(logicalDevice, uniformBuffer, nullptr);
 	vkFreeMemory(logicalDevice, uniformBufferMemory, nullptr);
-
-	vkDestroyDescriptorSetLayout(logicalDevice, descriptorSetLayout, nullptr);
 
 	scene.cleanup(logicalDevice);
 

@@ -137,6 +137,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="Shaders\compile.bat" />
+    <None Include="Shaders\shader.comp" />
     <None Include="Shaders\shader.frag" />
     <None Include="Shaders\shader.vert" />
   </ItemGroup>
