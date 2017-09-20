@@ -4,11 +4,13 @@
 
 #include "Camera.h"
 #include "Model.h"
+#include "Blades.h"
 
 class Scene {
 private:
 	Camera* camera;
 	Model* model;
+	Blades* blades;
 
 public:
 	Scene();
@@ -18,6 +20,8 @@ public:
 	Model* getModel();
 
 	Camera* getCamera();
+
+	Blades* getBlades();
 
 	void cleanup(VkDevice& logicalDevice);
 };

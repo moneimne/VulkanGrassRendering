@@ -1,5 +1,6 @@
 #include "Renderer.h"
 #include "Buffer.h"
+#include "Blades.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
@@ -883,6 +884,26 @@ void Renderer::createGraphicsPipeline() {
 	vkDestroyShaderModule(logicalDevice, fragShaderModule, nullptr);
 }
 
+void Renderer::createComputeDescriptorSetLayout() {
+	// Describe the binding of the descriptor set layout
+	VkDescriptorSetLayoutBinding computeLayoutBinding = {};
+	computeLayoutBinding.binding = 2;
+	computeLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+	computeLayoutBinding.descriptorCount = 1;
+	computeLayoutBinding.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+	computeLayoutBinding.pImmutableSamplers = nullptr;
+
+	// Create the descriptor set layout
+	VkDescriptorSetLayoutCreateInfo layoutInfo = {};
+	layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+	layoutInfo.bindingCount = 1;
+	layoutInfo.pBindings = &computeLayoutBinding;
+
+	if (vkCreateDescriptorSetLayout(logicalDevice, &layoutInfo, nullptr, &computeDescriptorSetLayout) != VK_SUCCESS) {
+		throw std::runtime_error("Failed to create descriptor set layout");
+	}
+}
+
 void Renderer::createComputePipeline() {
 	// Set up programmable shaders
 	auto computeShaderCode = readFile("Shaders/comp.spv");
@@ -898,8 +919,8 @@ void Renderer::createComputePipeline() {
 	// Create pipeline layout
 	VkPipelineLayoutCreateInfo pipelineLayoutInfo = {};
 	pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-	pipelineLayoutInfo.setLayoutCount = 0;
-	pipelineLayoutInfo.pSetLayouts = VK_NULL_HANDLE;
+	pipelineLayoutInfo.setLayoutCount = 1;
+	pipelineLayoutInfo.pSetLayouts = &computeDescriptorSetLayout;
 	pipelineLayoutInfo.pushConstantRangeCount = 0;
 	pipelineLayoutInfo.pPushConstantRanges = 0;
 
@@ -1231,17 +1252,19 @@ void Renderer::createUniformBuffer() {
 
 void Renderer::createDescriptorPool() {
 	// Describe which descriptor types that the descriptor sets will contain
-	std::array<VkDescriptorPoolSize, 2> poolSizes = {};
+	std::array<VkDescriptorPoolSize, 3> poolSizes = {};
 	poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 	poolSizes[0].descriptorCount = 1;
 	poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 	poolSizes[1].descriptorCount = 1;
+	poolSizes[2].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+	poolSizes[2].descriptorCount = 1;
 
 	VkDescriptorPoolCreateInfo poolInfo = {};
 	poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
 	poolInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
 	poolInfo.pPoolSizes = poolSizes.data();
-	poolInfo.maxSets = 1;
+	poolInfo.maxSets = 2;
 
 	if (vkCreateDescriptorPool(logicalDevice, &poolInfo, nullptr, &descriptorPool) != VK_SUCCESS) {
 		throw std::runtime_error("Failed to create descriptor pool");
@@ -1292,6 +1315,43 @@ void Renderer::createDescriptorSet() {
 	descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 	descriptorWrites[1].descriptorCount = 1;
 	descriptorWrites[1].pImageInfo = &imageInfo;
+
+	// Update descriptor sets
+	vkUpdateDescriptorSets(logicalDevice, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
+}
+
+void Renderer::createComputeDescriptorSet() {
+	// Describe the desciptor set
+	VkDescriptorSetLayout layouts[] = { computeDescriptorSetLayout };
+	VkDescriptorSetAllocateInfo allocInfo = {};
+	allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+	allocInfo.descriptorPool = descriptorPool;
+	allocInfo.descriptorSetCount = 1;
+	allocInfo.pSetLayouts = layouts;
+
+	// Allocate descriptor sets
+	if (vkAllocateDescriptorSets(logicalDevice, &allocInfo, &computeDescriptorSet) != VK_SUCCESS) {
+		throw std::runtime_error("Failed to allocate descriptor set");
+	}
+
+	// Configure the descriptors to refer to buffers
+	VkDescriptorBufferInfo bufferInfo = {};
+	bufferInfo.buffer = computeBuffer;
+	bufferInfo.offset = 0;
+	bufferInfo.range = NUM_BLADES * sizeof(Blade);
+
+	// Bind resources to the descriptor
+
+	std::array<VkWriteDescriptorSet, 1> descriptorWrites = {};
+	descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+	descriptorWrites[0].dstSet = computeDescriptorSet;
+	descriptorWrites[0].dstBinding = 2;
+	descriptorWrites[0].dstArrayElement = 0;
+	descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+	descriptorWrites[0].descriptorCount = 1;
+	descriptorWrites[0].pBufferInfo = &bufferInfo;
+	descriptorWrites[0].pImageInfo = nullptr;
+	descriptorWrites[0].pTexelBufferView = nullptr;
 
 	// Update descriptor sets
 	vkUpdateDescriptorSets(logicalDevice, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
@@ -1418,6 +1478,7 @@ void Renderer::initVulkan() {
 	createRenderPass();
 	createDescriptorSetLayout();
 	createGraphicsPipeline();
+	createComputeDescriptorSetLayout();
 	createComputePipeline();
 	createCommandPool();
 	createDepthResources();
@@ -1432,6 +1493,8 @@ void Renderer::initVulkan() {
 
 void Renderer::createScene() {
 	scene = Scene(logicalDevice, physicalDevice, commandPool, graphicsQueue, swapChainExtent.width / (float)swapChainExtent.height);
+	Buffer::createBladesBuffer(scene.getBlades(), computeBuffer, computeBufferMemory, logicalDevice, physicalDevice, commandPool, computeQueue);
+	createComputeDescriptorSet();
 	Model* model = scene.getModel();
 	createCommandBuffers(*model);
 	createSemaphores();
@@ -1577,6 +1640,10 @@ void Renderer::cleanup() {
 	vkDestroyDescriptorSetLayout(logicalDevice, descriptorSetLayout, nullptr);
 	vkDestroyBuffer(logicalDevice, uniformBuffer, nullptr);
 	vkFreeMemory(logicalDevice, uniformBufferMemory, nullptr);
+
+	vkDestroyDescriptorSetLayout(logicalDevice, computeDescriptorSetLayout, nullptr);
+	vkDestroyBuffer(logicalDevice, computeBuffer, nullptr);
+	vkFreeMemory(logicalDevice, computeBufferMemory, nullptr);
 
 	scene.cleanup(logicalDevice);
 

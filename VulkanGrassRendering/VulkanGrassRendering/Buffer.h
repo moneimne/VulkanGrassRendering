@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Vertex.h"
+#include "Blades.h"
 
 #include <vulkan/vulkan.h>
 #include <vector>
@@ -14,4 +15,6 @@ public:
 	static void createVertexBuffer(std::vector<Vertex>& vertices, VkBuffer& vertexBuffer, VkDeviceMemory& vertexBufferMemory, VkDevice& logicalDevice, VkPhysicalDevice& physicalDevice, VkCommandPool& commandPool, VkQueue& graphicsQueue);
 
 	static void createIndexBuffer(std::vector<uint32_t>& indices, VkBuffer& indexBuffer, VkDeviceMemory& indexBufferMemory, VkDevice& logicalDevice, VkPhysicalDevice& physicalDevice, VkCommandPool& commandPool, VkQueue& graphicsQueue);
+
+	static void createBladesBuffer(Blades* blades, VkBuffer& bladesBuffer, VkDeviceMemory& bladesBufferMemory, VkDevice& logicalDevice, VkPhysicalDevice& physicalDevice, VkCommandPool& commandPool, VkQueue& computeQueue);
 };

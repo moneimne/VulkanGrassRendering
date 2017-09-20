@@ -61,6 +61,9 @@ private:
 	VkPipelineLayout graphicsPipelineLayout;
 	VkPipeline graphicsPipeline;
 
+	VkBuffer computeBuffer;
+	VkDeviceMemory computeBufferMemory;
+	VkDescriptorSetLayout computeDescriptorSetLayout;
 	VkPipelineLayout computePipelineLayout;
 	VkPipeline computePipeline;
 
@@ -75,6 +78,7 @@ private:
 
 	VkDescriptorPool descriptorPool;
 	VkDescriptorSet descriptorSet;
+	VkDescriptorSet computeDescriptorSet;
 
 	VkImage textureImage;
 	VkDeviceMemory textureImageMemory;
@@ -129,6 +133,9 @@ private:
 	// Create the graphics pipeline
 	void createGraphicsPipeline();
 
+	// Create the descriptor set layout for the compute pipeline
+	void createComputeDescriptorSetLayout();
+
 	// Create the compute pipeline
 	void createComputePipeline();
 
@@ -164,6 +171,9 @@ private:
 
 	// Create the descriptor set
 	void createDescriptorSet();
+
+	// Create the compute descriptor set
+	void createComputeDescriptorSet();
 
 	// Update the uniform buffer
 	void updateUniformBuffer();
