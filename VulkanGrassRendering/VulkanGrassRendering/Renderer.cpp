@@ -20,6 +20,8 @@
 const int WIDTH = 800;
 const int HEIGHT = 600;
 
+const int WORKGROUP_SIZE = 32;
+
 const std::vector<const char*> validationLayers = {
 	"VK_LAYER_LUNARG_standard_validation"
 };
@@ -983,6 +985,19 @@ void Renderer::createCommandPool() {
 	}
 }
 
+void Renderer::createComputeCommandPool() {
+	QueueFamilyIndices queueFamilyIndices = findQueueFamilies(physicalDevice, surface);
+
+	VkCommandPoolCreateInfo poolInfo = {};
+	poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+	poolInfo.queueFamilyIndex = queueFamilyIndices.computeFamily;
+	poolInfo.flags = 0;
+
+	if (vkCreateCommandPool(logicalDevice, &poolInfo, nullptr, &computeCommandPool) != VK_SUCCESS) {
+		throw std::runtime_error("Failed to create compute command pool");
+	}
+}
+
 uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties, VkPhysicalDevice physicalDevice) {
 	VkPhysicalDeviceMemoryProperties memProperties;
 	vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memProperties);
@@ -1457,6 +1472,42 @@ void Renderer::createCommandBuffers(Model& model) {
 	}
 }
 
+void Renderer::createComputeCommandBuffer() {
+	// Specify the command pool and number of buffers to allocate
+	VkCommandBufferAllocateInfo allocInfo = {};
+	allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+	allocInfo.commandPool = computeCommandPool;
+	allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+	allocInfo.commandBufferCount = 1;
+
+	if (vkAllocateCommandBuffers(logicalDevice, &allocInfo, &computeCommandBuffer) != VK_SUCCESS) {
+		throw std::runtime_error("Failed to allocate command buffers");
+	}
+
+	// Start command buffer recording
+	VkCommandBufferBeginInfo beginInfo = {};
+	beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+	beginInfo.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
+	beginInfo.pInheritanceInfo = nullptr;
+
+	// ~ Start recording ~
+	vkBeginCommandBuffer(computeCommandBuffer, &beginInfo);
+
+	// Bind to the compute pipeline
+	vkCmdBindPipeline(computeCommandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, computePipeline);
+
+	// Bind descriptor sets
+	vkCmdBindDescriptorSets(computeCommandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, computePipelineLayout, 0, 1, &computeDescriptorSet, 0, nullptr);
+
+	// Dispatch compute shader
+	vkCmdDispatch(computeCommandBuffer, NUM_BLADES / WORKGROUP_SIZE, 1, 1);
+
+	// ~ End recording ~
+	if (vkEndCommandBuffer(computeCommandBuffer) != VK_SUCCESS) {
+		throw std::runtime_error("Failed to record compute command buffer");
+	}
+}
+
 void Renderer::createSemaphores() {
 	VkSemaphoreCreateInfo semaphoreInfo = {};
 	semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
@@ -1481,6 +1532,7 @@ void Renderer::initVulkan() {
 	createComputeDescriptorSetLayout();
 	createComputePipeline();
 	createCommandPool();
+	createComputeCommandPool();
 	createDepthResources();
 	createFramebuffers();
 	createTextureImage();
@@ -1497,10 +1549,43 @@ void Renderer::createScene() {
 	createComputeDescriptorSet();
 	Model* model = scene.getModel();
 	createCommandBuffers(*model);
+	createComputeCommandBuffer();
 	createSemaphores();
 }
 
 void Renderer::drawFrame() {
+	// --- Run compute culling first ---
+
+	// Submit the command buffer
+	VkSubmitInfo computeSubmitInfo = {};
+	computeSubmitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+	computeSubmitInfo.commandBufferCount = 1;
+	computeSubmitInfo.pCommandBuffers = &computeCommandBuffer;
+
+	// Make a fence to ensure culling finishes first
+	VkFence fence;
+	VkFenceCreateInfo fenceCreateInfo = {};
+	fenceCreateInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+	fenceCreateInfo.flags = 0;
+
+	if (vkCreateFence(logicalDevice, &fenceCreateInfo, nullptr, &fence) != VK_SUCCESS) {
+		throw std::runtime_error("Failed to create fence");
+	}
+
+	// Submit command buffer to compute queue
+	if (vkQueueSubmit(computeQueue, 1, &computeSubmitInfo, fence) != VK_SUCCESS) {
+		throw std::runtime_error("Failed to submit compute command buffer");
+	}
+
+	// Wait for fence
+	if (vkWaitForFences(logicalDevice, 1, &fence, VK_TRUE, std::numeric_limits<uint64_t>::max()) != VK_SUCCESS) {
+		throw std::runtime_error("Failed to wait for fence");
+	}
+
+	vkDestroyFence(logicalDevice, fence, nullptr);
+
+	// --- Render ---
+
 	// Acquire an image from the swap chain
 	uint32_t imageIndex;
 	VkResult result = vkAcquireNextImageKHR(logicalDevice, swapChain, std::numeric_limits<uint64_t>::max(), imageAvailableSemaphore, VK_NULL_HANDLE, &imageIndex);
@@ -1651,6 +1736,7 @@ void Renderer::cleanup() {
 	vkDestroySemaphore(logicalDevice, renderFinishedSemaphore, nullptr);
 	
 	vkDestroyCommandPool(logicalDevice, commandPool, nullptr);
+	vkDestroyCommandPool(logicalDevice, computeCommandPool, nullptr);
 	
 	vkDestroyDevice(logicalDevice, nullptr);
 	DestroyDebugReportCallbackEXT(instance, callback, nullptr);

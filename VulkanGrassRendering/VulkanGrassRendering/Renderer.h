@@ -70,6 +70,9 @@ private:
 	VkCommandPool commandPool;
 	std::vector<VkCommandBuffer> commandBuffers;
 
+	VkCommandPool computeCommandPool;
+	VkCommandBuffer computeCommandBuffer;
+
 	VkSemaphore imageAvailableSemaphore;
 	VkSemaphore renderFinishedSemaphore;
 
@@ -145,6 +148,9 @@ private:
 	// Create a command pool, which manages the memory that is used to store buffers and command buffers
 	void createCommandPool();
 
+	// Create a command pool for the compute pipeline
+	void createComputeCommandPool();
+
 	// Create a Vulkan image
 	void createImage(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory);
 
@@ -190,6 +196,9 @@ private:
 
 	// Create the command buffers, which are used to record drawing commands to be used in the pipeline
 	void createCommandBuffers(Model& model);
+
+	// Create the compute command buffer
+	void createComputeCommandBuffer();
 
 	// Create the semaphores that will help synchronize the queue operations of draw commands and presentation
 	void createSemaphores();
