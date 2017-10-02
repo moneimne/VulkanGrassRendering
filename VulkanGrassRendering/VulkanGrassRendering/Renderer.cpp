@@ -1351,7 +1351,7 @@ void Renderer::createComputeDescriptorSet() {
 
 	// Configure the descriptors to refer to buffers
 	VkDescriptorBufferInfo bufferInfo = {};
-	bufferInfo.buffer = computeBuffer;
+	bufferInfo.buffer = bladesBuffer;
 	bufferInfo.offset = 0;
 	bufferInfo.range = NUM_BLADES * sizeof(Blade);
 
@@ -1545,7 +1545,7 @@ void Renderer::initVulkan() {
 
 void Renderer::createScene() {
 	scene = Scene(logicalDevice, physicalDevice, commandPool, graphicsQueue, swapChainExtent.width / (float)swapChainExtent.height);
-	Buffer::createBladesBuffer(scene.getBlades(), computeBuffer, computeBufferMemory, logicalDevice, physicalDevice, commandPool, computeQueue);
+	Buffer::createBladesBuffer(scene.getBlades(), bladesBuffer, bladesBufferMemory, logicalDevice, physicalDevice, commandPool, computeQueue);
 	createComputeDescriptorSet();
 	Model* model = scene.getModel();
 	createCommandBuffers(*model);
@@ -1727,8 +1727,8 @@ void Renderer::cleanup() {
 	vkFreeMemory(logicalDevice, uniformBufferMemory, nullptr);
 
 	vkDestroyDescriptorSetLayout(logicalDevice, computeDescriptorSetLayout, nullptr);
-	vkDestroyBuffer(logicalDevice, computeBuffer, nullptr);
-	vkFreeMemory(logicalDevice, computeBufferMemory, nullptr);
+	vkDestroyBuffer(logicalDevice, bladesBuffer, nullptr);
+	vkFreeMemory(logicalDevice, bladesBufferMemory, nullptr);
 
 	scene.cleanup(logicalDevice);
 

@@ -163,15 +163,23 @@ void Buffer::createBladesBuffer(Blades* blades, VkBuffer& bladesBuffer, VkDevice
 	memcpy(data, blades->data(), (size_t)bufferSize);
 	vkUnmapMemory(logicalDevice, stagingBufferMemory);
 
-	// Create the vertex buffer
-	VkBufferUsageFlags indexUsage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
-	VkMemoryPropertyFlags indexFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-	createBuffer(bufferSize, indexUsage, indexFlags, bladesBuffer, bladesBufferMemory, logicalDevice, physicalDevice);
+	// Create the storage buffer
+	VkBufferUsageFlags storageUsage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+	VkMemoryPropertyFlags storageFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+	createBuffer(bufferSize, storageUsage, storageFlags, bladesBuffer, bladesBufferMemory, logicalDevice, physicalDevice);
 
-	// Copy data from staging to vertex buffer
+	// Copy data from staging to storage buffer
 	copyBuffer(stagingBuffer, bladesBuffer, bufferSize, commandPool, logicalDevice, computeQueue);
 
 	// No need for the staging buffer anymore
 	vkDestroyBuffer(logicalDevice, stagingBuffer, nullptr);
 	vkFreeMemory(logicalDevice, stagingBufferMemory, nullptr);
+}
+
+void Buffer::createCulledBladesBuffer(VkBuffer& storageBuffer, VkDeviceMemory& storageBufferMemory, VkDevice& logicalDevice, VkPhysicalDevice& physicalDevice, VkCommandPool& commandPool, VkQueue& computeQueue) {
+	// Create the storage buffer
+	VkBufferUsageFlags storageUsage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+	VkMemoryPropertyFlags storageFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+	VkDeviceSize bufferSize = NUM_BLADES * sizeof(Blade);
+	createBuffer(bufferSize, storageUsage, storageFlags, storageBuffer, storageBufferMemory, logicalDevice, physicalDevice);
 }

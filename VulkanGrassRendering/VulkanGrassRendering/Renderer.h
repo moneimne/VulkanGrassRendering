@@ -61,8 +61,10 @@ private:
 	VkPipelineLayout graphicsPipelineLayout;
 	VkPipeline graphicsPipeline;
 
-	VkBuffer computeBuffer;
-	VkDeviceMemory computeBufferMemory;
+	VkBuffer bladesBuffer;
+	VkDeviceMemory bladesBufferMemory;
+	VkBuffer culledBladesBuffer;
+	VkDeviceMemory culledBladesBufferMemory;
 	VkDescriptorSetLayout computeDescriptorSetLayout;
 	VkPipelineLayout computePipelineLayout;
 	VkPipeline computePipeline;

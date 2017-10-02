@@ -17,4 +17,6 @@ public:
 	static void createIndexBuffer(std::vector<uint32_t>& indices, VkBuffer& indexBuffer, VkDeviceMemory& indexBufferMemory, VkDevice& logicalDevice, VkPhysicalDevice& physicalDevice, VkCommandPool& commandPool, VkQueue& graphicsQueue);
 
 	static void createBladesBuffer(Blades* blades, VkBuffer& bladesBuffer, VkDeviceMemory& bladesBufferMemory, VkDevice& logicalDevice, VkPhysicalDevice& physicalDevice, VkCommandPool& commandPool, VkQueue& computeQueue);
+
+	static void createCulledBladesBuffer(VkBuffer& storageBuffer, VkDeviceMemory& storageBufferMemory, VkDevice& logicalDevice, VkPhysicalDevice& physicalDevice, VkCommandPool& commandPool, VkQueue& computeQueue);
 };
