@@ -67,16 +67,28 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <None Include="Shaders\shader.frag">
-      <Filter>Source Files\Shaders</Filter>
-    </None>
-    <None Include="Shaders\shader.vert">
-      <Filter>Source Files\Shaders</Filter>
-    </None>
     <None Include="Shaders\compile.bat">
       <Filter>Source Files\Shaders</Filter>
     </None>
-    <None Include="Shaders\shader.comp">
+    <None Include="Shaders\graphics.vert">
+      <Filter>Source Files\Shaders</Filter>
+    </None>
+    <None Include="Shaders\compute.comp">
+      <Filter>Source Files\Shaders</Filter>
+    </None>
+    <None Include="Shaders\graphics.frag">
+      <Filter>Source Files\Shaders</Filter>
+    </None>
+    <None Include="Shaders\grass.frag">
+      <Filter>Source Files\Shaders</Filter>
+    </None>
+    <None Include="Shaders\grass.tesc">
+      <Filter>Source Files\Shaders</Filter>
+    </None>
+    <None Include="Shaders\grass.tese">
+      <Filter>Source Files\Shaders</Filter>
+    </None>
+    <None Include="Shaders\grass.vert">
       <Filter>Source Files\Shaders</Filter>
     </None>
   </ItemGroup>

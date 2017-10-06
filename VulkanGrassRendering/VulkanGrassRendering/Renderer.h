@@ -60,6 +60,8 @@ private:
 	VkDescriptorSetLayout descriptorSetLayout;
 	VkPipelineLayout graphicsPipelineLayout;
 	VkPipeline graphicsPipeline;
+	VkPipelineLayout grassPipelineLayout;
+	VkPipeline grassPipeline;
 
 	VkBuffer bladesBuffer;
 	VkDeviceMemory bladesBufferMemory;
@@ -137,6 +139,9 @@ private:
 
 	// Create the graphics pipeline
 	void createGraphicsPipeline();
+
+	// Create the grass graphics pipeline
+	void createGrassPipeline();
 
 	// Create the descriptor set layout for the compute pipeline
 	void createComputeDescriptorSetLayout();

@@ -138,9 +138,13 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="Shaders\compile.bat" />
-    <None Include="Shaders\shader.comp" />
-    <None Include="Shaders\shader.frag" />
-    <None Include="Shaders\shader.vert" />
+    <None Include="Shaders\compute.comp" />
+    <None Include="Shaders\graphics.frag" />
+    <None Include="Shaders\graphics.vert" />
+    <None Include="Shaders\grass.frag" />
+    <None Include="Shaders\grass.tesc" />
+    <None Include="Shaders\grass.tese" />
+    <None Include="Shaders\grass.vert" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
