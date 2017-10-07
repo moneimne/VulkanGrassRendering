@@ -30,6 +30,7 @@ const std::vector<const char*> deviceExtensions = {
 	VK_KHR_SWAPCHAIN_EXTENSION_NAME
 };
 
+#define NDEBUG
 #ifdef NDEBUG
 const bool enableValidationLayers = false;
 #else
@@ -157,7 +158,7 @@ bool checkValidationLayerSupport() {
 		}
 	}
 
-	return true;;
+	return true;
 }
 
 // Get the required list of extensions based on whether validation layers are enabled
@@ -725,6 +726,28 @@ void Renderer::createDescriptorSetLayout() {
 	}
 }
 
+void Renderer::createGrassDescriptorSetLayout() {
+	// Describe the binding of the descriptor set layout
+	VkDescriptorSetLayoutBinding uboLayoutBinding = {};
+	uboLayoutBinding.binding = 0;
+	uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	uboLayoutBinding.descriptorCount = 1;
+	uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+	uboLayoutBinding.pImmutableSamplers = nullptr;
+
+	std::array<VkDescriptorSetLayoutBinding, 1> bindings = { uboLayoutBinding };
+
+	// Create descriptor set layout
+	VkDescriptorSetLayoutCreateInfo layoutInfo = {};
+	layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+	layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size());
+	layoutInfo.pBindings = bindings.data();
+
+	if (vkCreateDescriptorSetLayout(logicalDevice, &layoutInfo, nullptr, &grassDescriptorSetLayout) != VK_SUCCESS) {
+		throw std::runtime_error("Failed to create descriptor set layout");
+	}
+}
+
 void Renderer::createGrassPipeline() {
 	// --- Set up programmable shaders ---
 	auto vertShaderCode = readFile("Shaders/grassVert.spv");
@@ -867,7 +890,7 @@ void Renderer::createGrassPipeline() {
 	VkPipelineLayoutCreateInfo pipelineLayoutInfo = {};
 	pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
 	pipelineLayoutInfo.setLayoutCount = 1;
-	pipelineLayoutInfo.pSetLayouts = &descriptorSetLayout;
+	pipelineLayoutInfo.pSetLayouts = &grassDescriptorSetLayout;
 	pipelineLayoutInfo.pushConstantRangeCount = 0;
 	pipelineLayoutInfo.pPushConstantRanges = 0;
 
@@ -1465,21 +1488,23 @@ void Renderer::createUniformBuffer() {
 
 void Renderer::createDescriptorPool() {
 	// Describe which descriptor types that the descriptor sets will contain
-	std::array<VkDescriptorPoolSize, 4> poolSizes = {};
+	std::array<VkDescriptorPoolSize, 5> poolSizes = {};
 	poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 	poolSizes[0].descriptorCount = 1;
 	poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 	poolSizes[1].descriptorCount = 1;
-	poolSizes[2].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+	poolSizes[2].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 	poolSizes[2].descriptorCount = 1;
 	poolSizes[3].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
 	poolSizes[3].descriptorCount = 1;
+	poolSizes[4].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+	poolSizes[4].descriptorCount = 1;
 
 	VkDescriptorPoolCreateInfo poolInfo = {};
 	poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
 	poolInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
 	poolInfo.pPoolSizes = poolSizes.data();
-	poolInfo.maxSets = 2;
+	poolInfo.maxSets = 3;
 
 	if (vkCreateDescriptorPool(logicalDevice, &poolInfo, nullptr, &descriptorPool) != VK_SUCCESS) {
 		throw std::runtime_error("Failed to create descriptor pool");
@@ -1530,6 +1555,42 @@ void Renderer::createDescriptorSet() {
 	descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 	descriptorWrites[1].descriptorCount = 1;
 	descriptorWrites[1].pImageInfo = &imageInfo;
+
+	// Update descriptor sets
+	vkUpdateDescriptorSets(logicalDevice, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
+}
+
+void Renderer::createGrassDescriptorSet() {
+	// Describe the descriptor set
+	VkDescriptorSetLayout layouts[] = { grassDescriptorSetLayout };
+	VkDescriptorSetAllocateInfo allocInfo = {};
+	allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+	allocInfo.descriptorPool = descriptorPool;
+	allocInfo.descriptorSetCount = 1;
+	allocInfo.pSetLayouts = layouts;
+
+	// Allocate descriptor sets
+	if (vkAllocateDescriptorSets(logicalDevice, &allocInfo, &grassDescriptorSet) != VK_SUCCESS) {
+		throw std::runtime_error("Failed to allocate descriptor set");
+	}
+
+	// Configure the descriptors to refer to buffers
+	VkDescriptorBufferInfo bufferInfo = {};
+	bufferInfo.buffer = uniformBuffer;
+	bufferInfo.offset = 0;
+	bufferInfo.range = sizeof(UniformBufferObject);
+
+	// Bind resources to the descriptor
+	std::array<VkWriteDescriptorSet, 1> descriptorWrites = {};
+	descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+	descriptorWrites[0].dstSet = grassDescriptorSet;
+	descriptorWrites[0].dstBinding = 0;
+	descriptorWrites[0].dstArrayElement = 0;
+	descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	descriptorWrites[0].descriptorCount = 1;
+	descriptorWrites[0].pBufferInfo = &bufferInfo;
+	descriptorWrites[0].pImageInfo = nullptr;
+	descriptorWrites[0].pTexelBufferView = nullptr;
 
 	// Update descriptor sets
 	vkUpdateDescriptorSets(logicalDevice, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
@@ -1676,6 +1737,20 @@ void Renderer::createCommandBuffers(Model& model) {
 		std::vector<uint32_t> indices = model.getIndices();
 		vkCmdDrawIndexed(commandBuffers[i], static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
 
+		// Bind the grass pipeline
+		vkCmdBindPipeline(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, grassPipeline);
+
+		// Bind the vertex buffer
+		VkBuffer grassVertexBuffers[] = { culledBladesBuffer };
+		VkDeviceSize grassOffsets[] = { 0 };
+		vkCmdBindVertexBuffers(commandBuffers[i], 0, 1, grassVertexBuffers, grassOffsets);
+
+		// Bind the descriptor sets
+		vkCmdBindDescriptorSets(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, grassPipelineLayout, 0, 1, &grassDescriptorSet, 0, nullptr);
+
+		// Draw
+		vkCmdDraw(commandBuffers[i], NUM_BLADES * 3, 1, 0, 0);
+
 		// End render pass
 		vkCmdEndRenderPass(commandBuffers[i]);
 
@@ -1742,6 +1817,7 @@ void Renderer::initVulkan() {
 	createImageViews();
 	createRenderPass();
 	createDescriptorSetLayout();
+	createGrassDescriptorSetLayout();
 	createGraphicsPipeline();
 	createGrassPipeline();
 	createComputeDescriptorSetLayout();
@@ -1756,6 +1832,7 @@ void Renderer::initVulkan() {
 	createUniformBuffer();
 	createDescriptorPool();
 	createDescriptorSet();
+	createGrassDescriptorSet();
 }
 
 void Renderer::createScene() {
@@ -1942,6 +2019,7 @@ void Renderer::cleanup() {
 	vkDestroyDescriptorPool(logicalDevice, descriptorPool, nullptr);
 
 	vkDestroyDescriptorSetLayout(logicalDevice, descriptorSetLayout, nullptr);
+	vkDestroyDescriptorSetLayout(logicalDevice, grassDescriptorSetLayout, nullptr);
 	vkDestroyBuffer(logicalDevice, uniformBuffer, nullptr);
 	vkFreeMemory(logicalDevice, uniformBufferMemory, nullptr);
 

@@ -60,6 +60,7 @@ private:
 	VkDescriptorSetLayout descriptorSetLayout;
 	VkPipelineLayout graphicsPipelineLayout;
 	VkPipeline graphicsPipeline;
+	VkDescriptorSetLayout grassDescriptorSetLayout;
 	VkPipelineLayout grassPipelineLayout;
 	VkPipeline grassPipeline;
 
@@ -85,6 +86,7 @@ private:
 
 	VkDescriptorPool descriptorPool;
 	VkDescriptorSet descriptorSet;
+	VkDescriptorSet grassDescriptorSet;
 	VkDescriptorSet computeDescriptorSet;
 
 	VkImage textureImage;
@@ -140,6 +142,9 @@ private:
 	// Create the graphics pipeline
 	void createGraphicsPipeline();
 
+	// Create the grass descriptor set layout
+	void createGrassDescriptorSetLayout();
+
 	// Create the grass graphics pipeline
 	void createGrassPipeline();
 
@@ -184,6 +189,9 @@ private:
 
 	// Create the descriptor set
 	void createDescriptorSet();
+
+	// Create the grass descriptor set
+	void createGrassDescriptorSet();
 
 	// Create the compute descriptor set
 	void createComputeDescriptorSet();
