@@ -7,7 +7,9 @@ layout(binding = 0) uniform UniformBufferObject {
 	mat4 proj;
 } ubo;
 
-layout(location = 0) in vec4 vertex;
+layout(location = 0) in vec4 v0;
+layout(location = 1) in vec4 v1;
+layout(location = 2) in vec4 v2;
 layout(location = 3) in vec4 up;
 
 out gl_PerVertex {

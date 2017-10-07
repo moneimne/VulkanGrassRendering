@@ -903,7 +903,7 @@ void Renderer::createGrassPipeline() {
 	tessellationInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_TESSELLATION_STATE_CREATE_INFO;
 	tessellationInfo.pNext = NULL;
 	tessellationInfo.flags = 0;
-	tessellationInfo.patchControlPoints = 3;
+	tessellationInfo.patchControlPoints = 1;
 
 	// --- Create graphics pipeline ---
 	VkGraphicsPipelineCreateInfo pipelineInfo = {};
@@ -1749,7 +1749,7 @@ void Renderer::createCommandBuffers(Model& model) {
 		vkCmdBindDescriptorSets(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, grassPipelineLayout, 0, 1, &grassDescriptorSet, 0, nullptr);
 
 		// Draw
-		vkCmdDraw(commandBuffers[i], NUM_BLADES * 3, 1, 0, 0);
+		vkCmdDraw(commandBuffers[i], NUM_BLADES, 1, 0, 0);
 
 		// End render pass
 		vkCmdEndRenderPass(commandBuffers[i]);
