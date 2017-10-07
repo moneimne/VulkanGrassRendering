@@ -1,6 +1,6 @@
-%VK_SDK_PATH%\Bin\glslangValidator.exe -V Graphics/graphics.vert
+%VK_SDK_PATH%\Bin\glslangValidator.exe -V graphics.vert
 move vert.spv graphicsVert.spv
-%VK_SDK_PATH%\Bin\glslangValidator.exe -V Graphics/graphics.frag
+%VK_SDK_PATH%\Bin\glslangValidator.exe -V graphics.frag
 move frag.spv graphicsFrag.spv
 
 %VK_SDK_PATH%\Bin\glslangValidator.exe -V grass.vert

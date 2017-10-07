@@ -4,7 +4,7 @@
 #define WORKGROUP_SIZE 32
 layout(local_size_x = WORKGROUP_SIZE, local_size_y = 1, local_size_z = 1) in;
 
-struct blade {
+struct Blade {
 	vec4 v0;
 	vec4 v1;
 	vec4 v2;
@@ -12,9 +12,16 @@ struct blade {
 };
 
 layout(binding = 2) buffer Blades {
-	blade blades[];
+	Blade blades[];
+};
+
+layout(binding = 3) buffer CulledBlades {
+	Blade culledBlades[];
 };
 
 void main() {
 	// To update values in buffer, access like this: blades[gl_GlobalInvocationID.x].v0.y++;
+	Blade blade = blades[gl_GlobalInvocationID.x];
+
+	culledBlades[gl_GlobalInvocationID.x] = blade;
 }

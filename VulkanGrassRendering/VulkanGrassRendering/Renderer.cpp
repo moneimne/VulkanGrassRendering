@@ -911,8 +911,6 @@ void Renderer::createGrassPipeline() {
 	vkDestroyShaderModule(logicalDevice, tescShaderModule, nullptr);
 	vkDestroyShaderModule(logicalDevice, teseShaderModule, nullptr);
 	vkDestroyShaderModule(logicalDevice, fragShaderModule, nullptr);
-
-	// TODO: Continue here!
 }
 
 void Renderer::createGraphicsPipeline() {
@@ -1079,18 +1077,27 @@ void Renderer::createGraphicsPipeline() {
 
 void Renderer::createComputeDescriptorSetLayout() {
 	// Describe the binding of the descriptor set layout
-	VkDescriptorSetLayoutBinding computeLayoutBinding = {};
-	computeLayoutBinding.binding = 2;
-	computeLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-	computeLayoutBinding.descriptorCount = 1;
-	computeLayoutBinding.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
-	computeLayoutBinding.pImmutableSamplers = nullptr;
+	VkDescriptorSetLayoutBinding grassLayoutBinding = {};
+	grassLayoutBinding.binding = 2;
+	grassLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+	grassLayoutBinding.descriptorCount = 1;
+	grassLayoutBinding.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+	grassLayoutBinding.pImmutableSamplers = nullptr;
+
+	VkDescriptorSetLayoutBinding culledGrassLayoutBinding = {};
+	culledGrassLayoutBinding.binding = 3;
+	culledGrassLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+	culledGrassLayoutBinding.descriptorCount = 1;
+	culledGrassLayoutBinding.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+	culledGrassLayoutBinding.pImmutableSamplers = nullptr;
+
+	std::array<VkDescriptorSetLayoutBinding, 2> bindings = { grassLayoutBinding, culledGrassLayoutBinding };
 
 	// Create the descriptor set layout
 	VkDescriptorSetLayoutCreateInfo layoutInfo = {};
 	layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-	layoutInfo.bindingCount = 1;
-	layoutInfo.pBindings = &computeLayoutBinding;
+	layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size());
+	layoutInfo.pBindings = bindings.data();
 
 	if (vkCreateDescriptorSetLayout(logicalDevice, &layoutInfo, nullptr, &computeDescriptorSetLayout) != VK_SUCCESS) {
 		throw std::runtime_error("Failed to create descriptor set layout");
@@ -1458,13 +1465,15 @@ void Renderer::createUniformBuffer() {
 
 void Renderer::createDescriptorPool() {
 	// Describe which descriptor types that the descriptor sets will contain
-	std::array<VkDescriptorPoolSize, 3> poolSizes = {};
+	std::array<VkDescriptorPoolSize, 4> poolSizes = {};
 	poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 	poolSizes[0].descriptorCount = 1;
 	poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 	poolSizes[1].descriptorCount = 1;
 	poolSizes[2].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
 	poolSizes[2].descriptorCount = 1;
+	poolSizes[3].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+	poolSizes[3].descriptorCount = 1;
 
 	VkDescriptorPoolCreateInfo poolInfo = {};
 	poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
@@ -1546,9 +1555,13 @@ void Renderer::createComputeDescriptorSet() {
 	bufferInfo.offset = 0;
 	bufferInfo.range = NUM_BLADES * sizeof(Blade);
 
-	// Bind resources to the descriptor
+	VkDescriptorBufferInfo culledBufferInfo = {};
+	culledBufferInfo.buffer = culledBladesBuffer;
+	culledBufferInfo.offset = 0;
+	culledBufferInfo.range = NUM_BLADES * sizeof(Blade);
 
-	std::array<VkWriteDescriptorSet, 1> descriptorWrites = {};
+	// Bind resources to the descriptor
+	std::array<VkWriteDescriptorSet, 2> descriptorWrites = {};
 	descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 	descriptorWrites[0].dstSet = computeDescriptorSet;
 	descriptorWrites[0].dstBinding = 2;
@@ -1558,6 +1571,16 @@ void Renderer::createComputeDescriptorSet() {
 	descriptorWrites[0].pBufferInfo = &bufferInfo;
 	descriptorWrites[0].pImageInfo = nullptr;
 	descriptorWrites[0].pTexelBufferView = nullptr;
+
+	descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+	descriptorWrites[1].dstSet = computeDescriptorSet;
+	descriptorWrites[1].dstBinding = 3;
+	descriptorWrites[1].dstArrayElement = 0;
+	descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+	descriptorWrites[1].descriptorCount = 1;
+	descriptorWrites[1].pBufferInfo = &culledBufferInfo;
+	descriptorWrites[1].pImageInfo = nullptr;
+	descriptorWrites[1].pTexelBufferView = nullptr;
 
 	// Update descriptor sets
 	vkUpdateDescriptorSets(logicalDevice, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
@@ -1738,6 +1761,7 @@ void Renderer::initVulkan() {
 void Renderer::createScene() {
 	scene = Scene(logicalDevice, physicalDevice, commandPool, graphicsQueue, swapChainExtent.width / (float)swapChainExtent.height);
 	Buffer::createBladesBuffer(scene.getBlades(), bladesBuffer, bladesBufferMemory, logicalDevice, physicalDevice, commandPool, computeQueue);
+	Buffer::createCulledBladesBuffer(culledBladesBuffer, culledBladesBufferMemory, logicalDevice, physicalDevice, commandPool, computeQueue);
 	createComputeDescriptorSet();
 	Model* model = scene.getModel();
 	createCommandBuffers(*model);
@@ -1924,6 +1948,8 @@ void Renderer::cleanup() {
 	vkDestroyDescriptorSetLayout(logicalDevice, computeDescriptorSetLayout, nullptr);
 	vkDestroyBuffer(logicalDevice, bladesBuffer, nullptr);
 	vkFreeMemory(logicalDevice, bladesBufferMemory, nullptr);
+	vkDestroyBuffer(logicalDevice, culledBladesBuffer, nullptr);
+	vkFreeMemory(logicalDevice, culledBladesBufferMemory, nullptr);
 
 	scene.cleanup(logicalDevice);
 
