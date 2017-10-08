@@ -1,6 +1,7 @@
 #include "Renderer.h"
 #include "Buffer.h"
 #include "Blades.h"
+#include "Utilities.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
@@ -664,24 +665,6 @@ void Renderer::createRenderPass() {
 	}
 }
 
-// Read binary data from shader files
-static std::vector<char> readFile(const std::string& filename) {
-	std::ifstream file(filename, std::ios::ate | std::ios::binary);
-
-	if (!file.is_open()) {
-		throw std::runtime_error("Failed to open file");
-	}
-
-	size_t fileSize = (size_t)file.tellg();
-	std::vector<char> buffer(fileSize);
-
-	file.seekg(0);
-	file.read(buffer.data(), fileSize);
-
-	file.close();
-	return buffer;
-}
-
 // Wrap the shaders in shader modules
 VkShaderModule createShaderModule(const std::vector<char>& code, VkDevice logicalDevice) {
 	VkShaderModuleCreateInfo createInfo = {};
@@ -697,7 +680,7 @@ VkShaderModule createShaderModule(const std::vector<char>& code, VkDevice logica
 	return shaderModule;
 }
 
-void Renderer::createDescriptorSetLayout() {
+void Renderer::createGraphicsDescriptorSetLayout() {
 	// Describe the binding of the descriptor set layout
 	VkDescriptorSetLayoutBinding uboLayoutBinding = {};
 	uboLayoutBinding.binding = 0;
@@ -721,7 +704,7 @@ void Renderer::createDescriptorSetLayout() {
 	layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size());
 	layoutInfo.pBindings = bindings.data();
 
-	if (vkCreateDescriptorSetLayout(logicalDevice, &layoutInfo, nullptr, &descriptorSetLayout) != VK_SUCCESS) {
+	if (vkCreateDescriptorSetLayout(logicalDevice, &layoutInfo, nullptr, &graphicsDescriptorSetLayout) != VK_SUCCESS) {
 		throw std::runtime_error("Failed to create descriptor set layout");
 	}
 }
@@ -1062,7 +1045,7 @@ void Renderer::createGraphicsPipeline() {
 	VkPipelineLayoutCreateInfo pipelineLayoutInfo = {};
 	pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
 	pipelineLayoutInfo.setLayoutCount = 1;
-	pipelineLayoutInfo.pSetLayouts = &descriptorSetLayout;
+	pipelineLayoutInfo.pSetLayouts = &graphicsDescriptorSetLayout;
 	pipelineLayoutInfo.pushConstantRangeCount = 0;
 	pipelineLayoutInfo.pPushConstantRanges = 0;
 
@@ -1512,9 +1495,9 @@ void Renderer::createDescriptorPool() {
 	}
 }
 
-void Renderer::createDescriptorSet() {
+void Renderer::createGraphicsDescriptorSet() {
 	// Describe the desciptor set
-	VkDescriptorSetLayout layouts[] = { descriptorSetLayout };
+	VkDescriptorSetLayout layouts[] = { graphicsDescriptorSetLayout };
 	VkDescriptorSetAllocateInfo allocInfo = {};
 	allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
 	allocInfo.descriptorPool = descriptorPool;
@@ -1522,7 +1505,7 @@ void Renderer::createDescriptorSet() {
 	allocInfo.pSetLayouts = layouts;
 
 	// Allocate descriptor sets
-	if (vkAllocateDescriptorSets(logicalDevice, &allocInfo, &descriptorSet) != VK_SUCCESS) {
+	if (vkAllocateDescriptorSets(logicalDevice, &allocInfo, &graphicsDescriptorSet) != VK_SUCCESS) {
 		throw std::runtime_error("Failed to allocate descriptor set");
 	}
 
@@ -1540,7 +1523,7 @@ void Renderer::createDescriptorSet() {
 
 	std::array<VkWriteDescriptorSet, 2> descriptorWrites = {};
 	descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-	descriptorWrites[0].dstSet = descriptorSet;
+	descriptorWrites[0].dstSet = graphicsDescriptorSet;
 	descriptorWrites[0].dstBinding = 0;
 	descriptorWrites[0].dstArrayElement = 0;
 	descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -1550,7 +1533,7 @@ void Renderer::createDescriptorSet() {
 	descriptorWrites[0].pTexelBufferView = nullptr;
 
 	descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-	descriptorWrites[1].dstSet = descriptorSet;
+	descriptorWrites[1].dstSet = graphicsDescriptorSet;
 	descriptorWrites[1].dstBinding = 1;
 	descriptorWrites[1].dstArrayElement = 0;
 	descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
@@ -1747,7 +1730,7 @@ void Renderer::createCommandBuffers(Model& model) {
 		vkCmdBindIndexBuffer(commandBuffers[i], model.getIndexBuffer(), 0, VK_INDEX_TYPE_UINT32);
 
 		// Bind the descriptor sets
-		vkCmdBindDescriptorSets(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipelineLayout, 0, 1, &descriptorSet, 0, nullptr);
+		vkCmdBindDescriptorSets(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipelineLayout, 0, 1, &graphicsDescriptorSet, 0, nullptr);
 
 		// Draw
 		std::vector<uint32_t> indices = model.getIndices();
@@ -1832,7 +1815,7 @@ void Renderer::initVulkan() {
 	createSwapChain();
 	createImageViews();
 	createRenderPass();
-	createDescriptorSetLayout();
+	createGraphicsDescriptorSetLayout();
 	createGrassDescriptorSetLayout();
 	createGraphicsPipeline();
 	createGrassPipeline();
@@ -1847,7 +1830,7 @@ void Renderer::initVulkan() {
 	createTextureSampler();
 	Buffer::createUniformBuffer(sizeof(MvpBufferObject), mvpBuffer, mvpBufferMemory, logicalDevice, physicalDevice);
 	createDescriptorPool();
-	createDescriptorSet();
+	createGraphicsDescriptorSet();
 	createGrassDescriptorSet();
 }
 
@@ -2046,7 +2029,7 @@ void Renderer::cleanup() {
 
 	vkDestroyDescriptorPool(logicalDevice, descriptorPool, nullptr);
 
-	vkDestroyDescriptorSetLayout(logicalDevice, descriptorSetLayout, nullptr);
+	vkDestroyDescriptorSetLayout(logicalDevice, graphicsDescriptorSetLayout, nullptr);
 	vkDestroyDescriptorSetLayout(logicalDevice, grassDescriptorSetLayout, nullptr);
 	vkDestroyBuffer(logicalDevice, mvpBuffer, nullptr);
 	vkFreeMemory(logicalDevice, mvpBufferMemory, nullptr);

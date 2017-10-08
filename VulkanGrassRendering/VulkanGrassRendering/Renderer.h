@@ -57,12 +57,18 @@ private:
 	std::vector<VkFramebuffer> swapChainFramebuffers;
 
 	VkRenderPass renderPass;
-	VkDescriptorSetLayout descriptorSetLayout;
+
+	VkDescriptorSetLayout graphicsDescriptorSetLayout;
 	VkPipelineLayout graphicsPipelineLayout;
 	VkPipeline graphicsPipeline;
+
 	VkDescriptorSetLayout grassDescriptorSetLayout;
 	VkPipelineLayout grassPipelineLayout;
 	VkPipeline grassPipeline;
+
+	VkDescriptorSetLayout computeDescriptorSetLayout;
+	VkPipelineLayout computePipelineLayout;
+	VkPipeline computePipeline;
 
 	VkBuffer bladesBuffer;
 	VkDeviceMemory bladesBufferMemory;
@@ -70,9 +76,6 @@ private:
 	VkDeviceMemory culledBladesBufferMemory;
 	VkBuffer timeBuffer;
 	VkDeviceMemory timeBufferMemory;
-	VkDescriptorSetLayout computeDescriptorSetLayout;
-	VkPipelineLayout computePipelineLayout;
-	VkPipeline computePipeline;
 
 	VkCommandPool commandPool;
 	std::vector<VkCommandBuffer> commandBuffers;
@@ -87,7 +90,7 @@ private:
 	VkDeviceMemory mvpBufferMemory;
 
 	VkDescriptorPool descriptorPool;
-	VkDescriptorSet descriptorSet;
+	VkDescriptorSet graphicsDescriptorSet;
 	VkDescriptorSet grassDescriptorSet;
 	VkDescriptorSet computeDescriptorSet;
 
@@ -139,7 +142,7 @@ private:
 	void createRenderPass();
 
 	// Create the descriptor set layout, which describes the details about every descriptor binding used in shaders
-	void createDescriptorSetLayout();
+	void createGraphicsDescriptorSetLayout();
 
 	// Create the graphics pipeline
 	void createGraphicsPipeline();
@@ -187,7 +190,7 @@ private:
 	void createDescriptorPool();
 
 	// Create the descriptor set
-	void createDescriptorSet();
+	void createGraphicsDescriptorSet();
 
 	// Create the grass descriptor set
 	void createGrassDescriptorSet();
