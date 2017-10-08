@@ -1,11 +1,11 @@
 #version 450
 #extension GL_ARB_separate_shader_objects : enable
 
-layout(binding = 0) uniform UniformBufferObject {
+layout(binding = 0) uniform MvpBufferObject {
 	mat4 model;
 	mat4 view;
 	mat4 proj;
-} ubo;
+} mvp;
 
 layout(location = 0) in vec4 v0;
 layout(location = 1) in vec4 v1;
@@ -22,9 +22,9 @@ out gl_PerVertex {
 };
 
 void main() {
-	vec4 position = ubo.model * vec4(v0.xyz, 1.0);
-	vertV1 = vec4((ubo.model * vec4(v1.xyz, 1.0)).xyz, v1.w);
-	vertV2 = vec4((ubo.model * vec4(v2.xyz, 1.0)).xyz, v2.w);
+	vec4 position = mvp.model * vec4(v0.xyz, 1.0);
+	vertV1 = vec4((mvp.model * vec4(v1.xyz, 1.0)).xyz, v1.w);
+	vertV2 = vec4((mvp.model * vec4(v2.xyz, 1.0)).xyz, v2.w);
 
 	vertUp = normalize(vertV1.xyz - position.xyz);
 

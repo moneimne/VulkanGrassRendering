@@ -26,7 +26,7 @@ struct SwapChainSupportDetails {
 	std::vector<VkPresentModeKHR> presentModes;
 };
 
-struct UniformBufferObject {
+struct MvpBufferObject {
 	glm::mat4 model;
 	glm::mat4 view;
 	glm::mat4 proj;
@@ -68,6 +68,8 @@ private:
 	VkDeviceMemory bladesBufferMemory;
 	VkBuffer culledBladesBuffer;
 	VkDeviceMemory culledBladesBufferMemory;
+	VkBuffer timeBuffer;
+	VkDeviceMemory timeBufferMemory;
 	VkDescriptorSetLayout computeDescriptorSetLayout;
 	VkPipelineLayout computePipelineLayout;
 	VkPipeline computePipeline;
@@ -81,8 +83,8 @@ private:
 	VkSemaphore imageAvailableSemaphore;
 	VkSemaphore renderFinishedSemaphore;
 
-	VkBuffer uniformBuffer;
-	VkDeviceMemory uniformBufferMemory;
+	VkBuffer mvpBuffer;
+	VkDeviceMemory mvpBufferMemory;
 
 	VkDescriptorPool descriptorPool;
 	VkDescriptorSet descriptorSet;
@@ -182,7 +184,7 @@ private:
 	void createTextureSampler();
 
 	// Create a uniform buffer
-	void createUniformBuffer();
+	void createMvpBuffer();
 
 	// Create descriptor pool, in which descriptor sets can be allocated
 	void createDescriptorPool();
@@ -197,7 +199,10 @@ private:
 	void createComputeDescriptorSet();
 
 	// Update the uniform buffer
-	void updateUniformBuffer();
+	void updateMvpBuffer();
+
+	// Update the time buffer
+	void updateTimeBuffer();
 
 	// Allow us to begin and end single time commands
 	VkCommandBuffer beginSingleTimeCommands();

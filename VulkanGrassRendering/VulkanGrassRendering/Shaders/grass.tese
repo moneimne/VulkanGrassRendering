@@ -3,11 +3,11 @@
 
 layout(quads, equal_spacing, ccw) in;
 
-layout(binding = 0) uniform UniformBufferObject {
+layout(binding = 0) uniform MvpBufferObject {
 	mat4 model;
 	mat4 view;
 	mat4 proj;
-} ubo;
+} mvp;
 
 layout(location = 0) patch in vec4 tescV1;
 layout(location = 1) patch in vec4 tescV2;
@@ -53,6 +53,6 @@ void main() {
 	float uOffset = u - 0.5;
 	vec3 position = mix(i1, i2, u + (-sign(uOffset) * 0.5 * v));
 
-	gl_Position = ubo.proj * ubo.view * vec4(position, 1.0);
+	gl_Position = mvp.proj * mvp.view * vec4(position, 1.0);
 	tesePosition = vec4(position, 1.5 * abs(sin(tescV1.w)));
 }

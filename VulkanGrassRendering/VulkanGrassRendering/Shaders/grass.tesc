@@ -3,11 +3,11 @@
 
 layout(vertices = 1) out;
 
-layout(binding = 0) uniform UniformBufferObject {
+layout(binding = 0) uniform MvpBufferObject {
 	mat4 model;
 	mat4 view;
 	mat4 proj;
-} ubo;
+} mvp;
 
 layout(location = 0) in vec4 vertV1[];
 layout(location = 1) in vec4 vertV2[];
@@ -27,7 +27,7 @@ void main() {
 	tescUp = vertUp[0];
 	tescDirection = vertDirection[0];
 
-	vec3 cameraPosition = -transpose(mat3(ubo.view)) * ubo.view[3].xyz;
+	vec3 cameraPosition = -transpose(mat3(mvp.view)) * mvp.view[3].xyz;
 	const float distance = distance(gl_in[0].gl_Position.xyz, cameraPosition);
 	const float minTessellationLevel = 3.0;
 	const float maxTessellationLevel = 5.0;

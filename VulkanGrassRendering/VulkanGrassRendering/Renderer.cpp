@@ -1114,7 +1114,14 @@ void Renderer::createComputeDescriptorSetLayout() {
 	culledGrassLayoutBinding.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
 	culledGrassLayoutBinding.pImmutableSamplers = nullptr;
 
-	std::array<VkDescriptorSetLayoutBinding, 2> bindings = { grassLayoutBinding, culledGrassLayoutBinding };
+	VkDescriptorSetLayoutBinding timeLayoutBinding = {};
+	timeLayoutBinding.binding = 4;
+	timeLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	timeLayoutBinding.descriptorCount = 1;
+	timeLayoutBinding.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+	timeLayoutBinding.pImmutableSamplers = nullptr;
+
+	std::array<VkDescriptorSetLayoutBinding, 3> bindings = { grassLayoutBinding, culledGrassLayoutBinding, timeLayoutBinding };
 
 	// Create the descriptor set layout
 	VkDescriptorSetLayoutCreateInfo layoutInfo = {};
@@ -1478,17 +1485,17 @@ void Renderer::transitionImageLayout(VkImage image, VkFormat format, VkImageLayo
 	endSingleTimeCommands(commandBuffer);
 }
 
-void Renderer::createUniformBuffer() {
+void Renderer::createMvpBuffer() {
 	// Create uniform buffer
-	VkDeviceSize bufferSize = sizeof(UniformBufferObject);
+	VkDeviceSize bufferSize = sizeof(MvpBufferObject);
 	VkBufferUsageFlags usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
 	VkMemoryPropertyFlags properties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-	Buffer::createBuffer(bufferSize, usage, properties, uniformBuffer, uniformBufferMemory, logicalDevice, physicalDevice);
+	Buffer::createBuffer(bufferSize, usage, properties, mvpBuffer, mvpBufferMemory, logicalDevice, physicalDevice);
 }
 
 void Renderer::createDescriptorPool() {
 	// Describe which descriptor types that the descriptor sets will contain
-	std::array<VkDescriptorPoolSize, 5> poolSizes = {};
+	std::array<VkDescriptorPoolSize, 6> poolSizes = {};
 	poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 	poolSizes[0].descriptorCount = 1;
 	poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
@@ -1499,6 +1506,8 @@ void Renderer::createDescriptorPool() {
 	poolSizes[3].descriptorCount = 1;
 	poolSizes[4].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
 	poolSizes[4].descriptorCount = 1;
+	poolSizes[5].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	poolSizes[5].descriptorCount = 1;
 
 	VkDescriptorPoolCreateInfo poolInfo = {};
 	poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
@@ -1527,9 +1536,9 @@ void Renderer::createDescriptorSet() {
 
 	// Configure the descriptors to refer to buffers
 	VkDescriptorBufferInfo bufferInfo = {};
-	bufferInfo.buffer = uniformBuffer;
+	bufferInfo.buffer = mvpBuffer;
 	bufferInfo.offset = 0;
-	bufferInfo.range = sizeof(UniformBufferObject);
+	bufferInfo.range = sizeof(MvpBufferObject);
 
 	// Bind image and sampler resources to the descriptor
 	VkDescriptorImageInfo imageInfo = {};
@@ -1576,9 +1585,9 @@ void Renderer::createGrassDescriptorSet() {
 
 	// Configure the descriptors to refer to buffers
 	VkDescriptorBufferInfo bufferInfo = {};
-	bufferInfo.buffer = uniformBuffer;
+	bufferInfo.buffer = mvpBuffer;
 	bufferInfo.offset = 0;
-	bufferInfo.range = sizeof(UniformBufferObject);
+	bufferInfo.range = sizeof(MvpBufferObject);
 
 	// Bind resources to the descriptor
 	std::array<VkWriteDescriptorSet, 1> descriptorWrites = {};
@@ -1621,8 +1630,13 @@ void Renderer::createComputeDescriptorSet() {
 	culledBufferInfo.offset = 0;
 	culledBufferInfo.range = NUM_BLADES * sizeof(Blade);
 
+	VkDescriptorBufferInfo timeBufferInfo = {};
+	timeBufferInfo.buffer = timeBuffer;
+	timeBufferInfo.offset = 0;
+	timeBufferInfo.range = sizeof(float);
+
 	// Bind resources to the descriptor
-	std::array<VkWriteDescriptorSet, 2> descriptorWrites = {};
+	std::array<VkWriteDescriptorSet, 3> descriptorWrites = {};
 	descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 	descriptorWrites[0].dstSet = computeDescriptorSet;
 	descriptorWrites[0].dstBinding = 2;
@@ -1642,6 +1656,16 @@ void Renderer::createComputeDescriptorSet() {
 	descriptorWrites[1].pBufferInfo = &culledBufferInfo;
 	descriptorWrites[1].pImageInfo = nullptr;
 	descriptorWrites[1].pTexelBufferView = nullptr;
+
+	descriptorWrites[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+	descriptorWrites[2].dstSet = computeDescriptorSet;
+	descriptorWrites[2].dstBinding = 4;
+	descriptorWrites[2].dstArrayElement = 0;
+	descriptorWrites[2].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	descriptorWrites[2].descriptorCount = 1;
+	descriptorWrites[2].pBufferInfo = &timeBufferInfo;
+	descriptorWrites[2].pImageInfo = nullptr;
+	descriptorWrites[2].pTexelBufferView = nullptr;
 
 	// Update descriptor sets
 	vkUpdateDescriptorSets(logicalDevice, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
@@ -1829,7 +1853,7 @@ void Renderer::initVulkan() {
 	createTextureImage();
 	createTextureImageView();
 	createTextureSampler();
-	createUniformBuffer();
+	createMvpBuffer();
 	createDescriptorPool();
 	createDescriptorSet();
 	createGrassDescriptorSet();
@@ -1839,6 +1863,7 @@ void Renderer::createScene() {
 	scene = Scene(logicalDevice, physicalDevice, commandPool, graphicsQueue, swapChainExtent.width / (float)swapChainExtent.height);
 	Buffer::createBladesBuffer(scene.getBlades(), bladesBuffer, bladesBufferMemory, logicalDevice, physicalDevice, commandPool, computeQueue);
 	Buffer::createCulledBladesBuffer(culledBladesBuffer, culledBladesBufferMemory, logicalDevice, physicalDevice, commandPool, computeQueue);
+	Buffer::createTimeBuffer(scene.deltaTime, timeBuffer, timeBufferMemory, logicalDevice, physicalDevice);
 	createComputeDescriptorSet();
 	Model* model = scene.getModel();
 	createCommandBuffers(*model);
@@ -1937,27 +1962,38 @@ void Renderer::drawFrame() {
 	vkQueueWaitIdle(presentQueue);
 }
 
-void Renderer::updateUniformBuffer() {
+void Renderer::updateMvpBuffer() {
 	Model* model = scene.getModel();
 	Camera* camera = scene.getCamera();
 
-	UniformBufferObject ubo = {};
-	ubo.model = model->getModelMatrix();
-	ubo.view = camera->getViewMatrix();
-	ubo.proj = camera->getProjectionMatrix();
+	MvpBufferObject mvpObject = {};
+	mvpObject.model = model->getModelMatrix();
+	mvpObject.view = camera->getViewMatrix();
+	mvpObject.proj = camera->getProjectionMatrix();
 
 	// Fill the uniform buffer
 	void *data;
-	vkMapMemory(logicalDevice, uniformBufferMemory, 0, sizeof(ubo), 0, &data);
-	memcpy(data, &ubo, sizeof(ubo));
-	vkUnmapMemory(logicalDevice, uniformBufferMemory);
+	vkMapMemory(logicalDevice, mvpBufferMemory, 0, sizeof(mvpObject), 0, &data);
+	memcpy(data, &mvpObject, sizeof(mvpObject));
+	vkUnmapMemory(logicalDevice, mvpBufferMemory);
+}
+
+void Renderer::updateTimeBuffer() {
+	scene.updateDeltaTime();
+
+	// Fill the time buffer
+	void *data;
+	vkMapMemory(logicalDevice, timeBufferMemory, 0, sizeof(float), 0, &data);
+	memcpy(data, &scene.deltaTime, sizeof(float));
+	vkUnmapMemory(logicalDevice, timeBufferMemory);
 }
 
 void Renderer::mainLoop() {
 	while (!glfwWindowShouldClose(window)) {
 		glfwPollEvents();
 
-		updateUniformBuffer();
+		updateMvpBuffer();
+		updateTimeBuffer();
 		drawFrame();
 	}
 
@@ -2020,14 +2056,16 @@ void Renderer::cleanup() {
 
 	vkDestroyDescriptorSetLayout(logicalDevice, descriptorSetLayout, nullptr);
 	vkDestroyDescriptorSetLayout(logicalDevice, grassDescriptorSetLayout, nullptr);
-	vkDestroyBuffer(logicalDevice, uniformBuffer, nullptr);
-	vkFreeMemory(logicalDevice, uniformBufferMemory, nullptr);
+	vkDestroyBuffer(logicalDevice, mvpBuffer, nullptr);
+	vkFreeMemory(logicalDevice, mvpBufferMemory, nullptr);
 
 	vkDestroyDescriptorSetLayout(logicalDevice, computeDescriptorSetLayout, nullptr);
 	vkDestroyBuffer(logicalDevice, bladesBuffer, nullptr);
 	vkFreeMemory(logicalDevice, bladesBufferMemory, nullptr);
 	vkDestroyBuffer(logicalDevice, culledBladesBuffer, nullptr);
 	vkFreeMemory(logicalDevice, culledBladesBufferMemory, nullptr);
+	vkDestroyBuffer(logicalDevice, timeBuffer, nullptr);
+	vkFreeMemory(logicalDevice, timeBufferMemory, nullptr);
 
 	scene.cleanup(logicalDevice);
 

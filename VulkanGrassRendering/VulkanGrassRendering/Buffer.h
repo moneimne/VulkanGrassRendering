@@ -19,4 +19,6 @@ public:
 	static void createBladesBuffer(Blades* blades, VkBuffer& bladesBuffer, VkDeviceMemory& bladesBufferMemory, VkDevice& logicalDevice, VkPhysicalDevice& physicalDevice, VkCommandPool& commandPool, VkQueue& computeQueue);
 
 	static void createCulledBladesBuffer(VkBuffer& storageBuffer, VkDeviceMemory& storageBufferMemory, VkDevice& logicalDevice, VkPhysicalDevice& physicalDevice, VkCommandPool& commandPool, VkQueue& computeQueue);
+
+	static void createTimeBuffer(float deltaTime, VkBuffer& timeBuffer, VkDeviceMemory& timeBufferMemory, VkDevice& logicalDevice, VkPhysicalDevice& physicalDevice);
 };

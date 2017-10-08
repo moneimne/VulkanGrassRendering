@@ -19,6 +19,10 @@ layout(binding = 3) buffer CulledBlades {
 	Blade culledBlades[];
 };
 
+layout(binding = 4) uniform DeltaTime {
+	float deltaTime;
+};
+
 void main() {
 	// To update values in buffer, access like this: blades[gl_GlobalInvocationID.x].v0.y++;
 	Blade blade = blades[gl_GlobalInvocationID.x];
