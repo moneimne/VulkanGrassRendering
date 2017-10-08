@@ -184,10 +184,9 @@ void Buffer::createCulledBladesBuffer(VkBuffer& storageBuffer, VkDeviceMemory& s
 	createBuffer(bufferSize, storageUsage, storageFlags, storageBuffer, storageBufferMemory, logicalDevice, physicalDevice);
 }
 
-void Buffer::createTimeBuffer(float deltaTime, VkBuffer& timeBuffer, VkDeviceMemory& timeBufferMemory, VkDevice& logicalDevice, VkPhysicalDevice& physicalDevice) {
+void Buffer::createUniformBuffer(VkDeviceSize bufferSize, VkBuffer& buffer, VkDeviceMemory& bufferMemory, VkDevice& logicalDevice, VkPhysicalDevice& physicalDevice) {
 	// Create uniform buffer
-	VkDeviceSize bufferSize = sizeof(float);
 	VkBufferUsageFlags usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
 	VkMemoryPropertyFlags properties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-	Buffer::createBuffer(bufferSize, usage, properties, timeBuffer, timeBufferMemory, logicalDevice, physicalDevice);
+	Buffer::createBuffer(bufferSize, usage, properties, buffer, bufferMemory, logicalDevice, physicalDevice);
 }

@@ -20,5 +20,5 @@ public:
 
 	static void createCulledBladesBuffer(VkBuffer& storageBuffer, VkDeviceMemory& storageBufferMemory, VkDevice& logicalDevice, VkPhysicalDevice& physicalDevice, VkCommandPool& commandPool, VkQueue& computeQueue);
 
-	static void createTimeBuffer(float deltaTime, VkBuffer& timeBuffer, VkDeviceMemory& timeBufferMemory, VkDevice& logicalDevice, VkPhysicalDevice& physicalDevice);
+	static void createUniformBuffer(VkDeviceSize bufferSize, VkBuffer& buffer, VkDeviceMemory& bufferufferMemory, VkDevice& logicalDevice, VkPhysicalDevice& physicalDevice);
 };

@@ -30,7 +30,7 @@ const std::vector<const char*> deviceExtensions = {
 	VK_KHR_SWAPCHAIN_EXTENSION_NAME
 };
 
-#define NDEBUG
+//#define NDEBUG
 #ifdef NDEBUG
 const bool enableValidationLayers = false;
 #else
@@ -1485,14 +1485,6 @@ void Renderer::transitionImageLayout(VkImage image, VkFormat format, VkImageLayo
 	endSingleTimeCommands(commandBuffer);
 }
 
-void Renderer::createMvpBuffer() {
-	// Create uniform buffer
-	VkDeviceSize bufferSize = sizeof(MvpBufferObject);
-	VkBufferUsageFlags usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
-	VkMemoryPropertyFlags properties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-	Buffer::createBuffer(bufferSize, usage, properties, mvpBuffer, mvpBufferMemory, logicalDevice, physicalDevice);
-}
-
 void Renderer::createDescriptorPool() {
 	// Describe which descriptor types that the descriptor sets will contain
 	std::array<VkDescriptorPoolSize, 6> poolSizes = {};
@@ -1853,7 +1845,7 @@ void Renderer::initVulkan() {
 	createTextureImage();
 	createTextureImageView();
 	createTextureSampler();
-	createMvpBuffer();
+	Buffer::createUniformBuffer(sizeof(MvpBufferObject), mvpBuffer, mvpBufferMemory, logicalDevice, physicalDevice);
 	createDescriptorPool();
 	createDescriptorSet();
 	createGrassDescriptorSet();
@@ -1863,7 +1855,7 @@ void Renderer::createScene() {
 	scene = Scene(logicalDevice, physicalDevice, commandPool, graphicsQueue, swapChainExtent.width / (float)swapChainExtent.height);
 	Buffer::createBladesBuffer(scene.getBlades(), bladesBuffer, bladesBufferMemory, logicalDevice, physicalDevice, commandPool, computeQueue);
 	Buffer::createCulledBladesBuffer(culledBladesBuffer, culledBladesBufferMemory, logicalDevice, physicalDevice, commandPool, computeQueue);
-	Buffer::createTimeBuffer(scene.deltaTime, timeBuffer, timeBufferMemory, logicalDevice, physicalDevice);
+	Buffer::createUniformBuffer(sizeof(float), timeBuffer, timeBufferMemory, logicalDevice, physicalDevice);
 	createComputeDescriptorSet();
 	Model* model = scene.getModel();
 	createCommandBuffers(*model);

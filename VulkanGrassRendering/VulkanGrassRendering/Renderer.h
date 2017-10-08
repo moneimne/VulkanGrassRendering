@@ -183,9 +183,6 @@ private:
 	// Create a sampler for the texture
 	void createTextureSampler();
 
-	// Create a uniform buffer
-	void createMvpBuffer();
-
 	// Create descriptor pool, in which descriptor sets can be allocated
 	void createDescriptorPool();
 
