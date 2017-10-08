@@ -6,10 +6,10 @@ Model::Model() {
 
 Model::Model(VkDevice& logicalDevice, VkPhysicalDevice& physicalDevice, VkCommandPool& commandPool, VkQueue& graphicsQueue) {
 	vertices = {
-		{ { -0.5f, 0.0f, 0.5f },{ 1.0f, 0.0f, 0.0f },{ 1.0f, 0.0f } },
-		{ { 0.5f, 0.0f, 0.5f },{ 0.0f, 1.0f, 0.0f },{ 0.0f, 0.0f } },
-		{ { 0.5f, 0.0f, -0.5f },{ 0.0f, 0.0f, 1.0f },{ 0.0f, 1.0f } },
-		{ { -0.5f, 0.0f, -0.5f },{ 1.0f, 1.0f, 1.0f },{ 1.0f, 1.0f } }
+		{ { -2.0f, 0.0f, 2.0f },{ 1.0f, 0.0f, 0.0f },{ 1.0f, 0.0f } },
+		{ { 2.0f, 0.0f, 2.0f },{ 0.0f, 1.0f, 0.0f },{ 0.0f, 0.0f } },
+		{ { 2.0f, 0.0f, -2.0f },{ 0.0f, 0.0f, 1.0f },{ 0.0f, 1.0f } },
+		{ { -2.0f, 0.0f, -2.0f },{ 1.0f, 1.0f, 1.0f },{ 1.0f, 1.0f } }
 	};
 
 	Buffer::createVertexBuffer(vertices, vertexBuffer, vertexBufferMemory, logicalDevice, physicalDevice, commandPool, graphicsQueue);
