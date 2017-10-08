@@ -97,7 +97,7 @@ void Buffer::createVertexBuffer(std::vector<Vertex>& vertices, VkBuffer& vertexB
 	VkDeviceSize bufferSize = sizeof(vertices[0]) * vertices.size();
 	VkBufferUsageFlags stagingUsage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
 	VkMemoryPropertyFlags stagingProperties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-	Buffer::createBuffer(bufferSize, stagingUsage, stagingProperties, stagingBuffer, stagingBufferMemory, logicalDevice, physicalDevice);
+	createBuffer(bufferSize, stagingUsage, stagingProperties, stagingBuffer, stagingBufferMemory, logicalDevice, physicalDevice);
 
 	// Fill the staging buffer
 	void *data;
@@ -108,10 +108,10 @@ void Buffer::createVertexBuffer(std::vector<Vertex>& vertices, VkBuffer& vertexB
 	// Create the vertex buffer
 	VkBufferUsageFlags vertexUsage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
 	VkMemoryPropertyFlags vertexFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-	Buffer::createBuffer(bufferSize, vertexUsage, vertexFlags, vertexBuffer, vertexBufferMemory, logicalDevice, physicalDevice);
+	createBuffer(bufferSize, vertexUsage, vertexFlags, vertexBuffer, vertexBufferMemory, logicalDevice, physicalDevice);
 
 	// Copy data from staging to vertex buffer
-	Buffer::copyBuffer(stagingBuffer, vertexBuffer, bufferSize, commandPool, logicalDevice, graphicsQueue);
+	copyBuffer(stagingBuffer, vertexBuffer, bufferSize, commandPool, logicalDevice, graphicsQueue);
 
 	// No need for the staging buffer anymore
 	vkDestroyBuffer(logicalDevice, stagingBuffer, nullptr);
@@ -188,5 +188,5 @@ void Buffer::createUniformBuffer(VkDeviceSize bufferSize, VkBuffer& buffer, VkDe
 	// Create uniform buffer
 	VkBufferUsageFlags usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
 	VkMemoryPropertyFlags properties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-	Buffer::createBuffer(bufferSize, usage, properties, buffer, bufferMemory, logicalDevice, physicalDevice);
+	createBuffer(bufferSize, usage, properties, buffer, bufferMemory, logicalDevice, physicalDevice);
 }
