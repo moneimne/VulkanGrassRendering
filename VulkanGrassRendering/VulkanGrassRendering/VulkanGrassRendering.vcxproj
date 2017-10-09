@@ -119,8 +119,9 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Blades.cpp" />
-    <ClCompile Include="Buffer.cpp" />
+    <ClCompile Include="Descriptors.cpp" />
     <ClCompile Include="Camera.cpp" />
+    <ClCompile Include="Image.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Model.cpp" />
     <ClCompile Include="Renderer.cpp" />
@@ -128,8 +129,9 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Blades.h" />
-    <ClInclude Include="Buffer.h" />
+    <ClInclude Include="Descriptors.h" />
     <ClInclude Include="Camera.h" />
+    <ClInclude Include="Image.h" />
     <ClInclude Include="Model.h" />
     <ClInclude Include="Renderer.h" />
     <ClInclude Include="Scene.h" />

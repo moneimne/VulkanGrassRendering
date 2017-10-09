@@ -1,10 +1,8 @@
 #include "Renderer.h"
-#include "Buffer.h"
+#include "Descriptors.h"
 #include "Blades.h"
+#include "Image.h"
 #include "Utilities.h"
-
-#define STB_IMAGE_IMPLEMENTATION
-#include <stb_image.h>
 
 #define GLM_FORCE_RADIANS
 // Use Vulkan depth range of 0.0 to 1.0 instead of OpenGL
@@ -571,7 +569,7 @@ void Renderer::createImageViews() {
 	swapChainImageViews.resize(swapChainImages.size());
 
 	for (size_t i = 0; i < swapChainImages.size(); i++) {
-		swapChainImageViews[i] = createImageView(swapChainImages[i], swapChainImageFormat, VK_IMAGE_ASPECT_COLOR_BIT);
+		swapChainImageViews[i] = Image::createImageView(logicalDevice, swapChainImages[i], swapChainImageFormat, VK_IMAGE_ASPECT_COLOR_BIT);
 	}
 }
 
@@ -1209,263 +1207,13 @@ void Renderer::createComputeCommandPool() {
 	}
 }
 
-uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties, VkPhysicalDevice physicalDevice) {
-	VkPhysicalDeviceMemoryProperties memProperties;
-	vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memProperties);
-
-	for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
-		if (typeFilter & (1 << i) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties) {
-			return i;
-		}
-	}
-
-	throw std::runtime_error("Failed to find suitable memory type");
-}
-
-void Renderer::createImage(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory) {
-	// Create Vulkan image
-	VkImageCreateInfo imageInfo = {};
-	imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-	imageInfo.imageType = VK_IMAGE_TYPE_2D;
-	imageInfo.extent.width = width;
-	imageInfo.extent.height = height;
-	imageInfo.extent.depth = 1;
-	imageInfo.mipLevels = 1;
-	imageInfo.arrayLayers = 1;
-	imageInfo.format = format;
-	imageInfo.tiling = tiling;
-	imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	imageInfo.usage = usage;
-	imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
-	imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-
-	if (vkCreateImage(logicalDevice, &imageInfo, nullptr, &image) != VK_SUCCESS) {
-		throw std::runtime_error("Failed to create image");
-	}
-
-	// Allocate memory for the image
-	VkMemoryRequirements memRequirements;
-	vkGetImageMemoryRequirements(logicalDevice, image, &memRequirements);
-
-	VkMemoryAllocateInfo allocInfo = {};
-	allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-	allocInfo.allocationSize = memRequirements.size;
-	allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, properties, physicalDevice);
-
-	if (vkAllocateMemory(logicalDevice, &allocInfo, nullptr, &imageMemory) != VK_SUCCESS) {
-		throw std::runtime_error("Failed to allocate image memory");
-	}
-
-	// Bind the image
-	vkBindImageMemory(logicalDevice, image, imageMemory, 0);
-}
-
-bool hasStencilComponent(VkFormat format) {
-	return format == VK_FORMAT_D32_SFLOAT_S8_UINT || format == VK_FORMAT_D24_UNORM_S8_UINT;
-}
-
 void Renderer::createDepthResources() {
 	VkFormat depthFormat = findDepthFormat(physicalDevice);
 
-	createImage(swapChainExtent.width, swapChainExtent.height, depthFormat, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, depthImage, depthImageMemory);
-	depthImageView = createImageView(depthImage, depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT);
+	Image::createImage(logicalDevice, physicalDevice, swapChainExtent.width, swapChainExtent.height, depthFormat, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, depthImage, depthImageMemory);
+	depthImageView = Image::createImageView(logicalDevice, depthImage, depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT);
 
-	transitionImageLayout(depthImage, depthFormat, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
-}
-
-void Renderer::createTextureImage() {
-	// Load the image
-	int texWidth, texHeight, texChannels;
-	stbi_uc* pixels = stbi_load("Textures/grass.jpg", &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
-	VkDeviceSize imageSize = texWidth * texHeight * 4;
-
-	if (!pixels) {
-		throw std::runtime_error("Failed to load texture image");
-	}
-
-	// Create staging buffer
-	VkBuffer stagingBuffer;
-	VkDeviceMemory stagingBufferMemory;
-
-	VkBufferUsageFlags stagingUsage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
-	VkMemoryPropertyFlags stagingProperties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-	Buffer::createBuffer(imageSize, stagingUsage, stagingProperties, stagingBuffer, stagingBufferMemory, logicalDevice, physicalDevice);
-
-	// Copy pixel values to the buffer
-	void* data;
-	vkMapMemory(logicalDevice, stagingBufferMemory, 0, imageSize, 0, &data);
-	memcpy(data, pixels, static_cast<size_t>(imageSize));
-	vkUnmapMemory(logicalDevice, stagingBufferMemory);
-
-	// Free pixel array
-	stbi_image_free(pixels);
-
-	// Create Vulkan image
-	VkFormat format = VK_FORMAT_R8G8B8A8_UNORM;
-	VkImageTiling tiling = VK_IMAGE_TILING_OPTIMAL;
-	VkImageUsageFlags usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-	VkMemoryPropertyFlags properties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-	createImage(texWidth, texHeight, format, tiling, usage, properties, textureImage, textureImageMemory);
-
-	// Copy the staging buffer to the texture image
-	// --> First need to transition the texture image to VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
-	transitionImageLayout(textureImage, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-	copyBufferToImage(stagingBuffer, textureImage, static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight));
-
-	// Transition texture image for shader access
-	transitionImageLayout(textureImage, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-
-	// No need for stagin buffer anymore
-	vkDestroyBuffer(logicalDevice, stagingBuffer, nullptr);
-	vkFreeMemory(logicalDevice, stagingBufferMemory, nullptr);
-}
-
-VkImageView Renderer::createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags) {
-	VkImageViewCreateInfo viewInfo = {};
-	viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-	viewInfo.image = image;
-	viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-	viewInfo.format = format;
-
-	// Describe the image's purpose and which part of the image should be accessed
-	viewInfo.subresourceRange.aspectMask = aspectFlags;
-	viewInfo.subresourceRange.baseMipLevel = 0;
-	viewInfo.subresourceRange.levelCount = 1;
-	viewInfo.subresourceRange.baseArrayLayer = 0;
-	viewInfo.subresourceRange.layerCount = 1;
-
-	VkImageView imageView;
-	if (vkCreateImageView(logicalDevice, &viewInfo, nullptr, &imageView) != VK_SUCCESS) {
-		throw std::runtime_error("Failed to texture image view");
-	}
-
-	return imageView;
-}
-
-void Renderer::createTextureImageView() {
-	textureImageView = createImageView(textureImage, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_ASPECT_COLOR_BIT);
-}
-
-void Renderer::createTextureSampler() {
-	// --- Specify all filters and transformations ---
-	VkSamplerCreateInfo samplerInfo = {};
-	samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-
-	// Interpolation of texels that are magnified or minified
-	samplerInfo.magFilter = VK_FILTER_LINEAR;
-	samplerInfo.minFilter = VK_FILTER_LINEAR;
-
-	// Addressing mode
-	samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-	samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-	samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-	
-	// Anisotropic filtering
-	samplerInfo.anisotropyEnable = VK_TRUE;
-	samplerInfo.maxAnisotropy = 16;
-
-	// Border color
-	samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
-
-	// Choose coordinate system for addressing texels --> [0, 1) here
-	samplerInfo.unnormalizedCoordinates = VK_FALSE;
-
-	// Comparison function used for filtering operations
-	samplerInfo.compareEnable = VK_FALSE;
-	samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
-
-	// Mipmapping
-	samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-	samplerInfo.mipLodBias = 0.0f;
-	samplerInfo.minLod = 0.0f;
-	samplerInfo.maxLod = 0.0f;
-
-	if (vkCreateSampler(logicalDevice, &samplerInfo, nullptr, &textureSampler) != VK_SUCCESS) {
-		throw std::runtime_error("Failed to create texture sampler");
-	}
-}
-
-void Renderer::copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height) {
-	VkCommandBuffer commandBuffer = beginSingleTimeCommands();
-
-	// Specify which part of the buffer is going to be copied to which part of the image
-	VkBufferImageCopy region = {};
-	region.bufferOffset = 0;
-	region.bufferRowLength = 0;
-	region.bufferImageHeight = 0;
-	
-	region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-	region.imageSubresource.mipLevel = 0;
-	region.imageSubresource.baseArrayLayer = 0;
-	region.imageSubresource.layerCount = 1;
-
-	region.imageOffset = { 0, 0, 0 };
-	region.imageExtent = { width, height, 1 };
-
-	vkCmdCopyBufferToImage(commandBuffer, buffer, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
-
-	endSingleTimeCommands(commandBuffer);
-}
-
-void Renderer::transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout) {
-	VkCommandBuffer commandBuffer = beginSingleTimeCommands();
-
-	// Use an image memory barrier (type of pipeline barrier) to transition image layout
-	VkImageMemoryBarrier barrier = {};
-	barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-	barrier.oldLayout = oldLayout;
-	barrier.newLayout = newLayout;
-	barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-	barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-	barrier.image = image;
-	
-	if (newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL) {
-		barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
-
-		if (hasStencilComponent(format)) {
-			barrier.subresourceRange.aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
-		}
-	}
-	else {
-		barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-	}
-
-	barrier.subresourceRange.baseMipLevel = 0;
-	barrier.subresourceRange.levelCount = 1;
-	barrier.subresourceRange.baseArrayLayer = 0;
-	barrier.subresourceRange.layerCount = 1;
-
-	VkPipelineStageFlags sourceStage;
-	VkPipelineStageFlags destinationStage;
-
-	if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
-		barrier.srcAccessMask = 0;
-		barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-
-		sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-		destinationStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
-	}
-	else if (oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
-		barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-		barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-
-		sourceStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
-		destinationStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-	}
-	else if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL) {
-		barrier.srcAccessMask = 0;
-		barrier.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-
-		sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-		destinationStage = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-	}
-	else {
-		throw std::invalid_argument("Unsupported layout transition");
-	}
-
-	vkCmdPipelineBarrier(commandBuffer, sourceStage, destinationStage, 0, 0, nullptr, 0, nullptr, 1, &barrier);
-
-	endSingleTimeCommands(commandBuffer);
+	Image::transitionImageLayout(logicalDevice, commandPool, graphicsQueue, depthImage, depthFormat, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
 }
 
 void Renderer::createDescriptorPool() {
@@ -1511,15 +1259,15 @@ void Renderer::createGraphicsDescriptorSet() {
 
 	// Configure the descriptors to refer to buffers
 	VkDescriptorBufferInfo bufferInfo = {};
-	bufferInfo.buffer = mvpBuffer;
+	bufferInfo.buffer = descriptors.mvpBuffer;
 	bufferInfo.offset = 0;
 	bufferInfo.range = sizeof(MvpBufferObject);
 
 	// Bind image and sampler resources to the descriptor
 	VkDescriptorImageInfo imageInfo = {};
 	imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-	imageInfo.imageView = textureImageView;
-	imageInfo.sampler = textureSampler;
+	imageInfo.imageView = descriptors.textureImageView;
+	imageInfo.sampler = descriptors.textureSampler;
 
 	std::array<VkWriteDescriptorSet, 2> descriptorWrites = {};
 	descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -1560,7 +1308,7 @@ void Renderer::createGrassDescriptorSet() {
 
 	// Configure the descriptors to refer to buffers
 	VkDescriptorBufferInfo bufferInfo = {};
-	bufferInfo.buffer = mvpBuffer;
+	bufferInfo.buffer = descriptors.mvpBuffer;
 	bufferInfo.offset = 0;
 	bufferInfo.range = sizeof(MvpBufferObject);
 
@@ -1596,17 +1344,17 @@ void Renderer::createComputeDescriptorSet() {
 
 	// Configure the descriptors to refer to buffers
 	VkDescriptorBufferInfo bufferInfo = {};
-	bufferInfo.buffer = bladesBuffer;
+	bufferInfo.buffer = descriptors.bladesBuffer;
 	bufferInfo.offset = 0;
 	bufferInfo.range = NUM_BLADES * sizeof(Blade);
 
 	VkDescriptorBufferInfo culledBufferInfo = {};
-	culledBufferInfo.buffer = culledBladesBuffer;
+	culledBufferInfo.buffer = descriptors.culledBladesBuffer;
 	culledBufferInfo.offset = 0;
 	culledBufferInfo.range = NUM_BLADES * sizeof(Blade);
 
 	VkDescriptorBufferInfo timeBufferInfo = {};
-	timeBufferInfo.buffer = timeBuffer;
+	timeBufferInfo.buffer = descriptors.timeBuffer;
 	timeBufferInfo.offset = 0;
 	timeBufferInfo.range = sizeof(float);
 
@@ -1644,39 +1392,6 @@ void Renderer::createComputeDescriptorSet() {
 
 	// Update descriptor sets
 	vkUpdateDescriptorSets(logicalDevice, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
-}
-
-VkCommandBuffer Renderer::beginSingleTimeCommands() {
-	VkCommandBufferAllocateInfo allocInfo = {};
-	allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-	allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-	allocInfo.commandPool = commandPool;
-	allocInfo.commandBufferCount = 1;
-
-	VkCommandBuffer commandBuffer;
-	vkAllocateCommandBuffers(logicalDevice, &allocInfo, &commandBuffer);
-
-	VkCommandBufferBeginInfo beginInfo = {};
-	beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-	beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-
-	vkBeginCommandBuffer(commandBuffer, &beginInfo);
-
-	return commandBuffer;
-}
-
-void Renderer::endSingleTimeCommands(VkCommandBuffer commandBuffer) {
-	vkEndCommandBuffer(commandBuffer);
-
-	VkSubmitInfo submitInfo = {};
-	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-	submitInfo.commandBufferCount = 1;
-	submitInfo.pCommandBuffers = &commandBuffer;
-
-	vkQueueSubmit(graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
-	vkQueueWaitIdle(graphicsQueue);
-
-	vkFreeCommandBuffers(logicalDevice, commandPool, 1, &commandBuffer);
 }
 
 void Renderer::createCommandBuffers(Model& model) {
@@ -1740,7 +1455,7 @@ void Renderer::createCommandBuffers(Model& model) {
 		vkCmdBindPipeline(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, grassPipeline);
 
 		// Bind the vertex buffer
-		VkBuffer grassVertexBuffers[] = { culledBladesBuffer };
+		VkBuffer grassVertexBuffers[] = { descriptors.culledBladesBuffer };
 		VkDeviceSize grassOffsets[] = { 0 };
 		vkCmdBindVertexBuffers(commandBuffers[i], 0, 1, grassVertexBuffers, grassOffsets);
 
@@ -1825,10 +1540,10 @@ void Renderer::initVulkan() {
 	createComputeCommandPool();
 	createDepthResources();
 	createFramebuffers();
-	createTextureImage();
-	createTextureImageView();
-	createTextureSampler();
-	Buffer::createUniformBuffer(sizeof(MvpBufferObject), mvpBuffer, mvpBufferMemory, logicalDevice, physicalDevice);
+	descriptors.createTextureImage(logicalDevice, physicalDevice, commandPool, graphicsQueue);
+	descriptors.createTextureImageView(logicalDevice);
+	descriptors.createTextureSampler(logicalDevice);
+	descriptors.createMvpBuffer(sizeof(MvpBufferObject), logicalDevice, physicalDevice);
 	createDescriptorPool();
 	createGraphicsDescriptorSet();
 	createGrassDescriptorSet();
@@ -1836,9 +1551,9 @@ void Renderer::initVulkan() {
 
 void Renderer::createScene() {
 	scene = Scene(logicalDevice, physicalDevice, commandPool, graphicsQueue, swapChainExtent.width / (float)swapChainExtent.height);
-	Buffer::createBladesBuffer(scene.getBlades(), bladesBuffer, bladesBufferMemory, logicalDevice, physicalDevice, commandPool, computeQueue);
-	Buffer::createCulledBladesBuffer(culledBladesBuffer, culledBladesBufferMemory, logicalDevice, physicalDevice, commandPool, computeQueue);
-	Buffer::createUniformBuffer(sizeof(float), timeBuffer, timeBufferMemory, logicalDevice, physicalDevice);
+	descriptors.createBladesBuffer(scene.getBlades(), logicalDevice, physicalDevice, commandPool, computeQueue);
+	descriptors.createCulledBladesBuffer(logicalDevice, physicalDevice, commandPool, computeQueue);
+	descriptors.createTimeBuffer(sizeof(float), logicalDevice, physicalDevice);
 	createComputeDescriptorSet();
 	Model* model = scene.getModel();
 	createCommandBuffers(*model);
@@ -1948,9 +1663,9 @@ void Renderer::updateMvpBuffer() {
 
 	// Fill the uniform buffer
 	void *data;
-	vkMapMemory(logicalDevice, mvpBufferMemory, 0, sizeof(mvpObject), 0, &data);
+	vkMapMemory(logicalDevice, descriptors.mvpBufferMemory, 0, sizeof(mvpObject), 0, &data);
 	memcpy(data, &mvpObject, sizeof(mvpObject));
-	vkUnmapMemory(logicalDevice, mvpBufferMemory);
+	vkUnmapMemory(logicalDevice, descriptors.mvpBufferMemory);
 }
 
 void Renderer::updateTimeBuffer() {
@@ -1958,9 +1673,9 @@ void Renderer::updateTimeBuffer() {
 
 	// Fill the time buffer
 	void *data;
-	vkMapMemory(logicalDevice, timeBufferMemory, 0, sizeof(float), 0, &data);
+	vkMapMemory(logicalDevice, descriptors.timeBufferMemory, 0, sizeof(float), 0, &data);
 	memcpy(data, &scene.deltaTime, sizeof(float));
-	vkUnmapMemory(logicalDevice, timeBufferMemory);
+	vkUnmapMemory(logicalDevice, descriptors.timeBufferMemory);
 }
 
 void Renderer::mainLoop() {
@@ -2021,26 +1736,26 @@ void Renderer::cleanup() {
 	vkDestroyPipeline(logicalDevice, computePipeline, nullptr);
 	vkDestroyPipelineLayout(logicalDevice, computePipelineLayout, nullptr);
 
-	vkDestroySampler(logicalDevice, textureSampler, nullptr);
-	vkDestroyImageView(logicalDevice, textureImageView, nullptr);
+	vkDestroySampler(logicalDevice, descriptors.textureSampler, nullptr);
+	vkDestroyImageView(logicalDevice, descriptors.textureImageView, nullptr);
 
-	vkDestroyImage(logicalDevice, textureImage, nullptr);
-	vkFreeMemory(logicalDevice, textureImageMemory, nullptr);
+	vkDestroyImage(logicalDevice, descriptors.textureImage, nullptr);
+	vkFreeMemory(logicalDevice, descriptors.textureImageMemory, nullptr);
 
 	vkDestroyDescriptorPool(logicalDevice, descriptorPool, nullptr);
 
 	vkDestroyDescriptorSetLayout(logicalDevice, graphicsDescriptorSetLayout, nullptr);
 	vkDestroyDescriptorSetLayout(logicalDevice, grassDescriptorSetLayout, nullptr);
-	vkDestroyBuffer(logicalDevice, mvpBuffer, nullptr);
-	vkFreeMemory(logicalDevice, mvpBufferMemory, nullptr);
+	vkDestroyBuffer(logicalDevice, descriptors.mvpBuffer, nullptr);
+	vkFreeMemory(logicalDevice, descriptors.mvpBufferMemory, nullptr);
 
 	vkDestroyDescriptorSetLayout(logicalDevice, computeDescriptorSetLayout, nullptr);
-	vkDestroyBuffer(logicalDevice, bladesBuffer, nullptr);
-	vkFreeMemory(logicalDevice, bladesBufferMemory, nullptr);
-	vkDestroyBuffer(logicalDevice, culledBladesBuffer, nullptr);
-	vkFreeMemory(logicalDevice, culledBladesBufferMemory, nullptr);
-	vkDestroyBuffer(logicalDevice, timeBuffer, nullptr);
-	vkFreeMemory(logicalDevice, timeBufferMemory, nullptr);
+	vkDestroyBuffer(logicalDevice, descriptors.bladesBuffer, nullptr);
+	vkFreeMemory(logicalDevice, descriptors.bladesBufferMemory, nullptr);
+	vkDestroyBuffer(logicalDevice, descriptors.culledBladesBuffer, nullptr);
+	vkFreeMemory(logicalDevice, descriptors.culledBladesBufferMemory, nullptr);
+	vkDestroyBuffer(logicalDevice, descriptors.timeBuffer, nullptr);
+	vkFreeMemory(logicalDevice, descriptors.timeBufferMemory, nullptr);
 
 	scene.cleanup(logicalDevice);
 

@@ -9,6 +9,7 @@
 
 #include "Vertex.h"
 #include "Scene.h"
+#include "Descriptors.h"
 
 struct QueueFamilyIndices {
 	int graphicsFamily = -1;
@@ -70,13 +71,6 @@ private:
 	VkPipelineLayout computePipelineLayout;
 	VkPipeline computePipeline;
 
-	VkBuffer bladesBuffer;
-	VkDeviceMemory bladesBufferMemory;
-	VkBuffer culledBladesBuffer;
-	VkDeviceMemory culledBladesBufferMemory;
-	VkBuffer timeBuffer;
-	VkDeviceMemory timeBufferMemory;
-
 	VkCommandPool commandPool;
 	std::vector<VkCommandBuffer> commandBuffers;
 
@@ -86,22 +80,16 @@ private:
 	VkSemaphore imageAvailableSemaphore;
 	VkSemaphore renderFinishedSemaphore;
 
-	VkBuffer mvpBuffer;
-	VkDeviceMemory mvpBufferMemory;
-
 	VkDescriptorPool descriptorPool;
 	VkDescriptorSet graphicsDescriptorSet;
 	VkDescriptorSet grassDescriptorSet;
 	VkDescriptorSet computeDescriptorSet;
 
-	VkImage textureImage;
-	VkDeviceMemory textureImageMemory;
-	VkImageView textureImageView;
-	VkSampler textureSampler;
-
 	VkImage depthImage;
 	VkDeviceMemory depthImageMemory;
 	VkImageView depthImageView;
+
+	Descriptors descriptors;
 
 	Scene scene;
 	
@@ -168,23 +156,8 @@ private:
 	// Create a command pool for the compute pipeline
 	void createComputeCommandPool();
 
-	// Create a Vulkan image
-	void createImage(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory);
-
 	// Create resources for depth buffer
 	void createDepthResources();
-
-	// Create a texture image
-	void createTextureImage();
-
-	// Create an image view
-	VkImageView createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags);
-
-	// Create an image view for the texture image
-	void createTextureImageView();
-
-	// Create a sampler for the texture
-	void createTextureSampler();
 
 	// Create descriptor pool, in which descriptor sets can be allocated
 	void createDescriptorPool();
@@ -203,16 +176,6 @@ private:
 
 	// Update the time buffer
 	void updateTimeBuffer();
-
-	// Allow us to begin and end single time commands
-	VkCommandBuffer beginSingleTimeCommands();
-	void endSingleTimeCommands(VkCommandBuffer commandBuffer);
-
-	// Copy buffer data to image
-	void copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
-
-	// Handle layout transitions for images
-	void transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
 
 	// Create the command buffers, which are used to record drawing commands to be used in the pipeline
 	void createCommandBuffers(Model& model);
