@@ -24,12 +24,13 @@ Blades* Scene::getBlades() {
 	return blades;
 }
 
-void Scene::updateDeltaTime() {
+void Scene::updateTime() {
 	high_resolution_clock::time_point currentTime = high_resolution_clock::now();
 	duration<float> nextDeltaTime = duration_cast<duration<float>>(currentTime - startTime);
 	startTime = currentTime;
 
-	deltaTime = nextDeltaTime.count();
+	time.deltaTime = nextDeltaTime.count();
+	time.totalTime += time.deltaTime;;
 }
 
 void Scene::cleanup(VkDevice& logicalDevice) {

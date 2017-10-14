@@ -9,6 +9,11 @@
 
 using namespace std::chrono;
 
+struct Time {
+	float deltaTime = 0.0f;
+	float totalTime = 0.0f;
+};
+
 class Scene {
 private:
 	Camera* camera;
@@ -18,7 +23,7 @@ private:
 	high_resolution_clock::time_point startTime = high_resolution_clock::now();
 
 public:
-	float deltaTime = 0.0f;
+	Time time;
 	Scene();
 
 	Scene(VkDevice& logicalDevice, VkPhysicalDevice& physicalDevice, VkCommandPool& commandPool, VkQueue& graphicsQueue, float aspectRatio);
@@ -29,7 +34,7 @@ public:
 
 	Blades* getBlades();
 
-	void updateDeltaTime();
+	void updateTime();
 
 	void cleanup(VkDevice& logicalDevice);
 };

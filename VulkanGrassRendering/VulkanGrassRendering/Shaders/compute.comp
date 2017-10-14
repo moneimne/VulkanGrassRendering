@@ -19,13 +19,72 @@ layout(binding = 3) buffer CulledBlades {
 	Blade culledBlades[];
 };
 
-layout(binding = 4) uniform DeltaTime {
+layout(binding = 4) uniform Time {
 	float deltaTime;
+	float totalTime;
 };
 
 void main() {
 	// To update values in buffer, access like this: blades[gl_GlobalInvocationID.x].v0.y++;
 	Blade blade = blades[gl_GlobalInvocationID.x];
 
+	vec3 v0Position = blade.v0.xyz;
+	vec3 v1Position = blade.v1.xyz;
+	vec3 v2Position = blade.v2.xyz;
+	vec3 bladeUp = blade.up.xyz;
+	float direction = blade.v0.w;
+	float height = blade.v1.w;
+	float width = blade.v2.w;
+	float stiffness = blade.up.w;
+
+	// Blade direction
+	float sinTheta = sin(direction);
+	float cosTheta = cos(direction);
+	vec3 arbitraryVector = normalize(vec3(sinTheta, sinTheta + cosTheta, cosTheta));
+	vec3 bladeDirection = normalize(cross(bladeUp, arbitraryVector));
+
+	// Recovery force
+	vec3 iv2 = v0Position + (bladeUp * height);
+	vec3 recovery = (iv2 - v2Position) * stiffness;
+
+	// Gravity force
+	vec3 gravityDirection = vec3(0.0, -1.0, 0.0);
+	float gravityAcceleration = 9.8;
+	vec3 environmentalGravity = normalize(gravityDirection) * gravityAcceleration;
+
+	vec3 bladeFront = normalize(cross(bladeUp, bladeDirection));
+	vec3 frontGravity = 0.25 * length(environmentalGravity) * bladeFront;
+
+	vec3 gravity = environmentalGravity + frontGravity;
+
+	// Wind force
+	vec3 windDirection = vec3(1.0, 0.0, 0.0) * sin(totalTime);
+	float directionalAlignment = 1.0 - abs(dot(normalize(windDirection), normalize(v2Position - v0Position)));
+	float heightRatio = dot(v2Position - v0Position, bladeUp) / height;
+	float windAlignment = directionalAlignment * heightRatio;
+	vec3 wind = windDirection * windAlignment;
+
+	// Calculate next v2
+	vec3 v2Translation = (recovery + gravity + wind) * deltaTime;
+	vec3 nextV2 = v2Position + v2Translation;
+	nextV2 = nextV2 - (bladeUp * min(dot(bladeUp, nextV2), 0));
+
+	// Calculate next v1
+	float projectedLength = length(nextV2 - v0Position - (bladeUp * dot(nextV2 - v0Position, bladeUp)));
+	vec3 nextV1 = v0Position + height * bladeUp * max(1.0 - (projectedLength / height), 0.05 * max(projectedLength / height, 1.0));
+
+	// Approximate corrected length of the blade
+	float L0 = length(nextV2 - v0Position);
+	float L1 = length(nextV2 - nextV1) + length(nextV1 - v0Position);
+	float L = 0.5 * (L0 + L1);
+	float r = height / L;
+	vec3 correctedV1 = v0Position + r * (nextV1 - v0Position);
+	vec3 correctedV2 = correctedV1 + r * (nextV2 - nextV1);
+
+	// Update blade state
+	blade.v1 = vec4(correctedV1, height);
+	blade.v2 = vec4(correctedV2, width);
+
+	blades[gl_GlobalInvocationID.x] = blade;
 	culledBlades[gl_GlobalInvocationID.x] = blade;
 }

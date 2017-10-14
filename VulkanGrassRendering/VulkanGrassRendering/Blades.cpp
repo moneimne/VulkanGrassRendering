@@ -16,9 +16,9 @@ Blades::Blades(Model *model, int numberOfBlades) {
 		glm::vec3 bladeUp(0.0f, 1.0f, 0.0f);
 
 		// Generate positions and direction (v0)
-		float x = (generateRandomFloat() - 0.5f) * 4.0f;
+		float x = (generateRandomFloat() - 0.5f) * PLANE_DIM;
 		float y = 0.0f;
-		float z = (generateRandomFloat() - 0.5f) * 4.0f;
+		float z = (generateRandomFloat() - 0.5f) * PLANE_DIM;
 		float direction = generateRandomFloat() * TWO_PI;
 		glm::vec3 bladePosition(x, y, z);
 		currentBlade.v0 = glm::vec4(bladePosition, direction);

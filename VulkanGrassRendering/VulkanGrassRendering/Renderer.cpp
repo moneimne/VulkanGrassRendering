@@ -1356,7 +1356,7 @@ void Renderer::createComputeDescriptorSet() {
 	VkDescriptorBufferInfo timeBufferInfo = {};
 	timeBufferInfo.buffer = descriptors.timeBuffer;
 	timeBufferInfo.offset = 0;
-	timeBufferInfo.range = sizeof(float);
+	timeBufferInfo.range = sizeof(Time);
 
 	// Bind resources to the descriptor
 	std::array<VkWriteDescriptorSet, 3> descriptorWrites = {};
@@ -1553,7 +1553,7 @@ void Renderer::createScene() {
 	scene = Scene(logicalDevice, physicalDevice, commandPool, graphicsQueue, swapChainExtent.width / (float)swapChainExtent.height);
 	descriptors.createBladesBuffer(scene.getBlades(), logicalDevice, physicalDevice, commandPool, computeQueue);
 	descriptors.createCulledBladesBuffer(logicalDevice, physicalDevice, commandPool, computeQueue);
-	descriptors.createTimeBuffer(sizeof(float), logicalDevice, physicalDevice);
+	descriptors.createTimeBuffer(2 * sizeof(float), logicalDevice, physicalDevice);
 	createComputeDescriptorSet();
 	Model* model = scene.getModel();
 	createCommandBuffers(*model);
@@ -1669,12 +1669,12 @@ void Renderer::updateMvpBuffer() {
 }
 
 void Renderer::updateTimeBuffer() {
-	scene.updateDeltaTime();
+	scene.updateTime();
 
 	// Fill the time buffer
 	void *data;
-	vkMapMemory(logicalDevice, descriptors.timeBufferMemory, 0, sizeof(float), 0, &data);
-	memcpy(data, &scene.deltaTime, sizeof(float));
+	vkMapMemory(logicalDevice, descriptors.timeBufferMemory, 0, sizeof(Time), 0, &data);
+	memcpy(data, &scene.time, sizeof(Time));
 	vkUnmapMemory(logicalDevice, descriptors.timeBufferMemory);
 }
 

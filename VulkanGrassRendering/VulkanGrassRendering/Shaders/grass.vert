@@ -31,8 +31,8 @@ void main() {
 	float orientation = v0.w;
 	float sinTheta = sin(orientation);
 	float cosTheta = cos(orientation);
-	vec3 perpendicular = normalize(vec3(sinTheta, sinTheta + cosTheta, cosTheta));
-	vertDirection = normalize(cross(vertUp, perpendicular));
+	vec3 arbitraryVector = normalize(vec3(sinTheta, sinTheta + cosTheta, cosTheta));
+	vertDirection = normalize(cross(vertUp, arbitraryVector));
 
 	gl_Position = position;
 }

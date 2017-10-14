@@ -6,13 +6,13 @@
 
 #include "Model.h"
 
-const int NUM_BLADES = 512;
+const int NUM_BLADES = 1 << 13;
 const float MIN_HEIGHT = 1.3f;
 const float MAX_HEIGHT = 2.5f;
 const float MIN_WIDTH = 0.1f;
 const float MAX_WIDTH = 0.14f;
-const float MIN_BEND = 0.5f;
-const float MAX_BEND = 0.7f;
+const float MIN_BEND = 7.0f;
+const float MAX_BEND = 13.0f;
 
 struct Blade {
 	// Position and direction

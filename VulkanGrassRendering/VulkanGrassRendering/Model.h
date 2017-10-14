@@ -4,6 +4,8 @@
 
 #include "Vertex.h"
 
+const float PLANE_DIM = 15.0f;
+
 class Model {
 private:
 	std::vector<Vertex> vertices;

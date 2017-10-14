@@ -5,11 +5,12 @@ Model::Model() {
 }
 
 Model::Model(VkDevice& logicalDevice, VkPhysicalDevice& physicalDevice, VkCommandPool& commandPool, VkQueue& graphicsQueue) {
+	float halfWidth = PLANE_DIM * 0.5f;
 	vertices = {
-		{ { -2.0f, 0.0f, 2.0f },{ 1.0f, 0.0f, 0.0f },{ 1.0f, 0.0f } },
-		{ { 2.0f, 0.0f, 2.0f },{ 0.0f, 1.0f, 0.0f },{ 0.0f, 0.0f } },
-		{ { 2.0f, 0.0f, -2.0f },{ 0.0f, 0.0f, 1.0f },{ 0.0f, 1.0f } },
-		{ { -2.0f, 0.0f, -2.0f },{ 1.0f, 1.0f, 1.0f },{ 1.0f, 1.0f } }
+		{ { -halfWidth, 0.0f, halfWidth },{ 1.0f, 0.0f, 0.0f },{ 1.0f, 0.0f } },
+		{ { halfWidth, 0.0f, halfWidth },{ 0.0f, 1.0f, 0.0f },{ 0.0f, 0.0f } },
+		{ { halfWidth, 0.0f, -halfWidth },{ 0.0f, 0.0f, 1.0f },{ 0.0f, 1.0f } },
+		{ { -halfWidth, 0.0f, -halfWidth },{ 1.0f, 1.0f, 1.0f },{ 1.0f, 1.0f } }
 	};
 
 	Descriptors::createVertexBuffer(vertices, vertexBuffer, vertexBufferMemory, logicalDevice, physicalDevice, commandPool, graphicsQueue);
