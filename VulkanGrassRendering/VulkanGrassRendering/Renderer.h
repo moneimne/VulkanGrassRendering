@@ -66,6 +66,7 @@ private:
 	VkDescriptorSetLayout grassDescriptorSetLayout;
 	VkPipelineLayout grassPipelineLayout;
 	VkPipeline grassPipeline;
+	int prevNumBlades = 0;
 
 	VkDescriptorSetLayout computeDescriptorSetLayout;
 	VkPipelineLayout computePipelineLayout;
@@ -177,8 +178,17 @@ private:
 	// Update the time buffer
 	void updateTimeBuffer();
 
+	// Get number of blades after culling
+	int getNumBladesBuffer();
+
+	// Update number of blades back to 0
+	void updateNumBladesBuffer();
+
 	// Create the command buffers, which are used to record drawing commands to be used in the pipeline
-	void createCommandBuffers(Model& model);
+	void createCommandBuffers(Model& model, int numBlades);
+
+	// Recreate graphics command buffers if number of blades to render changes
+	void recreateCommandBuffers(int numBlades);
 
 	// Create the compute command buffer
 	void createComputeCommandBuffer();

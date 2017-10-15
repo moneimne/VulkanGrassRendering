@@ -22,6 +22,8 @@ public:
 	VkDeviceMemory culledBladesBufferMemory;
 	VkBuffer timeBuffer;
 	VkDeviceMemory timeBufferMemory;
+	VkBuffer numBladesBuffer;
+	VkDeviceMemory numBladesBufferMemory;
 
 	static void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory, VkDevice& logicalDevice, VkPhysicalDevice& physicalDevice);
 
@@ -40,6 +42,8 @@ public:
 	void createMvpBuffer(VkDeviceSize bufferSize, VkDevice& logicalDevice, VkPhysicalDevice& physicalDevice);
 
 	void createTimeBuffer(VkDeviceSize bufferSize, VkDevice& logicalDevice, VkPhysicalDevice& physicalDevice);
+
+	void createNumBladesBuffer(VkDeviceSize bufferSize, VkDevice& logicalDevice, VkPhysicalDevice& physicalDevice);
 
 	// Copy buffer data to image
 	void copyBufferToImage(VkDevice& logicalDevice, VkCommandPool& commandPool, VkQueue& graphicsQueue, VkBuffer& buffer, VkImage& image, uint32_t width, uint32_t height);

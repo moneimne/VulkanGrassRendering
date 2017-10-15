@@ -24,6 +24,20 @@ layout(binding = 4) uniform Time {
 	float totalTime;
 };
 
+layout(binding = 5) uniform MvpBufferObject {
+	mat4 model;
+	mat4 view;
+	mat4 proj;
+} mvp;
+
+layout(binding = 6) buffer NumBlades {
+	int numBlades;
+};
+
+bool inBounds(float value, float bounds) {
+	return (value >= -bounds) && (value <= bounds);
+}
+
 void main() {
 	// To update values in buffer, access like this: blades[gl_GlobalInvocationID.x].v0.y++;
 	Blade blade = blades[gl_GlobalInvocationID.x];
@@ -42,6 +56,10 @@ void main() {
 	float cosTheta = cos(direction);
 	vec3 arbitraryVector = normalize(vec3(sinTheta, sinTheta + cosTheta, cosTheta));
 	vec3 bladeDirection = normalize(cross(bladeUp, arbitraryVector));
+
+	// *******************************
+	// ******** UPDATE FORCES ********
+	// *******************************
 
 	// Recovery force
 	vec3 iv2 = v0Position + (bladeUp * height);
@@ -84,7 +102,48 @@ void main() {
 	// Update blade state
 	blade.v1 = vec4(correctedV1, height);
 	blade.v2 = vec4(correctedV2, width);
-
 	blades[gl_GlobalInvocationID.x] = blade;
-	culledBlades[gl_GlobalInvocationID.x] = blade;
+
+	// *****************************
+	// ******* CULL BLADES *********
+	// *****************************
+
+	mat3 inverseView = transpose(mat3(mvp.view));
+
+	// Orientation test
+	vec3 viewDirection = inverseView[2].xyz;
+	bool orientationCull = abs(dot(viewDirection, bladeDirection)) > 0.9;
+
+	// View-frustum test
+	float tolerance = 0.5;
+	mat4 VP = mvp.proj * mvp.view;
+
+	vec4 ndcV0 = VP * vec4(v0Position, 1.0);
+	ndcV0.w += tolerance;
+	bool v0Visible = inBounds(ndcV0.x, ndcV0.w) || inBounds(ndcV0.y, ndcV0.w) || inBounds(ndcV0.x, ndcV0.w);
+
+	vec4 bladeCenter = vec4(0.25 * v0Position + 0.5 * correctedV1 + 0.25 * correctedV2, 1.0);
+	vec4 ndcBladeCenter = VP * bladeCenter;
+	ndcBladeCenter += tolerance;
+	bool bladeCenterVisible = inBounds(ndcBladeCenter.x, ndcBladeCenter.w) || inBounds(ndcBladeCenter.y, ndcBladeCenter.w) || inBounds(ndcBladeCenter.x, ndcBladeCenter.w);
+
+	vec4 ndcV2 = VP * vec4(correctedV2, 1.0);
+	ndcV2 += tolerance;
+	bool v2Visible = inBounds(ndcV2.x, ndcV2.w) || inBounds(ndcV2.y, ndcV2.w) || inBounds(ndcV2.x, ndcV2.w);
+
+	bool viewFrustumCull = !(v0Visible && bladeCenterVisible && v2Visible);
+
+	// Distance test
+	float maxDistance = 40.0;
+	int numDepthLevels = 20;
+	vec3 cameraPosition = -inverseView * mvp.view[3].xyz;
+	float projectedDistance = length(v0Position - cameraPosition - bladeUp * dot(v0Position - cameraPosition, bladeUp));
+	int distanceBucket = int(floor(numDepthLevels * (1.0 - (projectedDistance / maxDistance))));
+	bool distanceCull = mod(gl_GlobalInvocationID.x, numDepthLevels) > distanceBucket;
+
+	int finalIndex;
+	if (!(orientationCull || viewFrustumCull || distanceCull)) {
+		finalIndex = atomicAdd(numBlades, 1);
+		culledBlades[finalIndex] = blade;
+	}
 }

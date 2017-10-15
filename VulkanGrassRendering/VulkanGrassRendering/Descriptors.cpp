@@ -158,6 +158,12 @@ void Descriptors::createTimeBuffer(VkDeviceSize bufferSize, VkDevice& logicalDev
 	createUniformBuffer(bufferSize, timeBuffer, timeBufferMemory, logicalDevice, physicalDevice);
 }
 
+void Descriptors::createNumBladesBuffer(VkDeviceSize bufferSize, VkDevice& logicalDevice, VkPhysicalDevice& physicalDevice) {
+	VkBufferUsageFlags storageUsage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+	VkMemoryPropertyFlags storageFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+	createBuffer(bufferSize, storageUsage, storageFlags, numBladesBuffer, numBladesBufferMemory, logicalDevice, physicalDevice);
+}
+
 void Descriptors::copyBufferToImage(VkDevice& logicalDevice, VkCommandPool& commandPool, VkQueue& graphicsQueue, VkBuffer& buffer, VkImage& image, uint32_t width, uint32_t height) {
 	VkCommandBuffer commandBuffer = beginSingleTimeCommands(commandPool, logicalDevice);
 
